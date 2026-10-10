@@ -195,6 +195,12 @@ export function parseProfile(json: string): Profile {
   } catch (e) {
     throw new Error(`profile is not valid JSON: ${(e as Error).message}`)
   }
+  if (o && typeof o === 'object' && (o as { format?: unknown }).format === 'meshcore-station-bundle')
+    throw new Error(
+      'this is a station bundle, not a profile: it holds a radio profile, a gateway profile and the go-box ' +
+        "settings. Load the radio or gateway profile instead (Event tab: 'Download radio profile' or " +
+        "'Download gateway profile'), or use 'Use radio profile' there.",
+    )
   const problems = validateProfile(o)
   if (problems.length) throw new Error('invalid profile:\n  ' + problems.join('\n  '))
   return o as Profile

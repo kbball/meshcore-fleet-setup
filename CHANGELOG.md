@@ -4,6 +4,9 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+### Fixed
+- Loading a station's downloaded file into the profile builder or the batch failed with "invalid profile": the Event tab's per-station download is a bundle (radio profile, gateway profile and go-box settings in one wrapper), not a profile. The Event tab now also offers **Download radio profile** and **Download gateway profile** for each station (real profile files the importers accept), and loading a bundle says what it is and what to load instead.
+
 ### Changed
 - The Event tab and `profiles/event.example.json` default to firmware release `ares-v1.0.1`, the first release that lists the gateway with its own kind.
 - The Docker image no longer copies `./firmware` in: it has an empty `/firmware` to mount the release onto. The smoke test checks that the image itself carries no firmware and that `/firmware/.release` is served.

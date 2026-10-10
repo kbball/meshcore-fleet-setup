@@ -274,6 +274,24 @@ function EventView({
             <button onClick={() => use(() => stationGatewayProfile(event, st))}>
               Use gateway profile for {st.id}
             </button>
+            <button
+              onClick={() =>
+                guard(() =>
+                  save(`station-${st.id}-radio.json`, profileJson(stationCompanionProfile(event, st))),
+                )
+              }
+            >
+              Download radio profile for {st.id}
+            </button>
+            <button
+              onClick={() =>
+                guard(() =>
+                  save(`station-${st.id}-gateway.json`, profileJson(stationGatewayProfile(event, st))),
+                )
+              }
+            >
+              Download gateway profile for {st.id}
+            </button>
             <button onClick={() => download(`station-${st.id}.json`, () => stationBundle(event, st))}>
               Download {st.id} bundle
             </button>
