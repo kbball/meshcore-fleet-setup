@@ -15,7 +15,7 @@ import type { CompanionProfile, TrackerProfile } from '../domain/profile'
 import { Batch, resultsCsv } from './batch'
 import { backupFilename, captureBackup, restoreBackup } from './backup'
 import { CompanionClient } from './companionClient'
-import { NodeRunner, type RunnerDeps } from './nodeRunner'
+import { NodeRunner, WIPE_REBOOT_MS, type RunnerDeps } from './nodeRunner'
 import type { FrameLink } from './ports'
 import { restoreNode } from './restoreNode'
 
@@ -350,6 +350,17 @@ describe('companion client and config edge cases', () => {
       { flash: false },
     )
     expect(r.steps.at(-1)).toMatchObject({ step: 'configure', status: 'failed' })
+  })
+})
+
+describe('wipe', () => {
+  it('does not wait for a reply to the factory reset, and gives the node time to reboot', async () => {
+    const { node, runner, deps } = setup()
+    const r = await runner.runCompanion(profile, { nodeName: 'AS3-1', flash: false })
+    expect(r.ok).toBe(true)
+    expect(node.resets).toBe(1)
+    expect((deps.clock as FakeClock).slept).toContain(WIPE_REBOOT_MS)
+    expect(r.steps.find((s) => s.step === 'wipe')?.status).toBe('ok')
   })
 })
 

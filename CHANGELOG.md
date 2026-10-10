@@ -5,6 +5,7 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 ## [Unreleased]
 
 ### Fixed
+- The wipe step failed with `timeout waiting for reply to factory reset` even though the node was being wiped. The firmware disables its serial interface before it formats, so no OK reply ever arrives over USB, and it reboots itself about a second later. The wipe now sends the reset without waiting for a reply, waits 8 s for the format and reboot (`WIPE_REBOOT_MS`, not yet measured on hardware), and then reconnects.
 - A failed connect (for example `timeout waiting for reply to app start`) left the serial port open and locked, so the retry failed with "The port is already open" until the page was reloaded. The port is now closed when the identity read fails.
 - A node that does not answer (a new board, or one running firmware without the USB companion protocol) could not be flashed, because the run read its identity before anything else and stopped there. With flash selected the run now goes on to the bootloader and records the connect step as "no reply from the node; going on to flash it". With backup selected it still stops, with a message saying the node cannot be backed up (a backup needs a talking node).
 - The T-1000-E could not be flashed from the app: its bootloader is UF2-only (a `T1000-E` drive, no serial port), so the serial DFU path found nothing to talk to. See Added.

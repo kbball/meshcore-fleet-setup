@@ -59,6 +59,8 @@ export type RunnerDeps = {
 }
 
 const REOPEN_TIMEOUT_MS = 30_000
+/** Format the filesystem, the firmware's own 1 s pause, then the reboot. Not measured on hardware yet. */
+export const WIPE_REBOOT_MS = 8_000
 
 class StopRun extends Error {}
 
@@ -116,8 +118,11 @@ export class NodeRunner {
 
       if (p.wipe_first) {
         await this.step(res, 'wipe', async () => {
-          await new CompanionClient(link!).ok(cmd.factoryReset(), 'factory reset')
+          // The firmware disables its serial interface before it formats, so no OK ever comes back over USB;
+          // it reboots by itself about a second after the format. Send, let go of the port, wait it out.
+          await new CompanionClient(link!).fireAndForget(cmd.factoryReset())
           await link!.close()
+          await this.d.clock.sleep(WIPE_REBOOT_MS)
           link = await this.d.connector.reopenFrames(REOPEN_TIMEOUT_MS)
         })
       } else this.skip(res, 'wipe')
