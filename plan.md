@@ -47,10 +47,9 @@ For 7 stations that is 16 channels in all (1 + 7 + 7 + 1). A station radio and i
 
 **Open questions.** Which gateways can actually hear the sweep trackers (no repeaters: direct range only, so antenna placement). Whether the bridge needs per-channel handling beyond filtering on `channel_idx`.
 
-**Build order.** (1) hardware-verify the existing flashing flows (item 1 above); (2) event file schema, key generation and per-station/tracker/gateway derivation as pure domain code with tests; (3) gateway device kind and adding its env to the publish workflow; (4) the go-box side (constant channel settings, docs) in `aredn-go-box`.
+**Build order.** (1) hardware-verify the existing flashing flows (item 1 above); (2) event file domain code (done); (3) gateway device kind and adding its env to the publish workflow; (4) the go-box side (constant channel settings, docs) in `aredn-go-box`.
 
 ## Code work still to do (after hardware verification of the existing flows)
-- Event file: schema, random key generation, per-station / tracker / gateway / net-control derivation, export of the go-box settings. Pure domain code with tests (no hardware needed). Include the firmware release tag the event uses.
 - `gateway` device kind: manifest `kind`, profile `kind`, builder UI; picks `RAK_4631_companion_radio_usb_ethernet` and shows the DHCP/MAC reminder.
 - Decide whether the image should keep baking in `./firmware` (it bakes in whatever is there at build time, which the published image has none of) or only mount it.
 - Show the installed firmware release (the go-box writes `firmware/.release`) in the UI so the operator can see which version is loaded.

@@ -1,0 +1,27 @@
+{
+  "format": "meshcore-event",
+  "version": 1,
+  "name": "Example 100",
+  "created": "2026-10-10T12:00:00Z",
+  "firmware_tag": "ares-v1.0.0",
+  "radio": { "freq": 910.525, "bw": 62.5, "sf": 7, "cr": 5, "tx_power": 20 },
+  "sweeps_secret": "00000000000000000000000000000001",
+  "all_race_secret": "00000000000000000000000000000002",
+  "stations": [
+    {
+      "id": "AS1",
+      "name": "Aid Station 1",
+      "log_secret": "00000000000000000000000000000011",
+      "chat_secret": "00000000000000000000000000000012"
+    },
+    {
+      "id": "AS2",
+      "name": "Aid Station 2",
+      "log_secret": "00000000000000000000000000000021",
+      "chat_secret": "00000000000000000000000000000022",
+      "gateway_address": "10.0.2.50"
+    }
+  ],
+  "trackers": { "name_template": "Sweep{n}", "count": 4 },
+  "ble_pin": 123456
+}
