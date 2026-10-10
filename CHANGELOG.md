@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- UI theme adapted from sweep-tracker: shared colour tokens, light/dark/system toggle, DM Sans bundled for offline use, card/panel layout.
+
 - Offline bundle (`make bundle`): app, firmware and a stdlib Python local server (`serve.py`); relative asset paths.
 
 - Project scaffold (Vite, React, TypeScript, Vitest), CI, and a Pages deploy workflow.

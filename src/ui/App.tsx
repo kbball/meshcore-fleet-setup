@@ -5,6 +5,7 @@ import type { NodeResult } from '../app/nodeRunner'
 import { restoreNode } from '../app/restoreNode'
 import { parseProfile, profileHasSecrets, type Profile } from '../domain/profile'
 import { buildApp, systemClock, type App as AppServices } from '../wiring'
+import { AppHeader } from './AppHeader'
 
 type PromptState = { msg: string; resolve: () => void } | null
 
@@ -26,24 +27,36 @@ export function App({ version, factory = buildApp }: { version: string; factory?
   useEffect(() => services.logger.subscribe(rerender), [services])
 
   return (
-    <main>
-      <h1>MeshCore Fleet Setup</h1>
-      <p>v{version}</p>
-      {!serial && <p role="alert">Web Serial is not available. Use Chrome or Edge on desktop.</p>}
+    <main className="page">
+      <AppHeader version={version} />
+      {!serial && (
+        <p role="alert" className="notice warn">
+          Web Serial is not available. Use Chrome or Edge on desktop.
+        </p>
+      )}
       <BatchPanel services={services} progress={progress} onDone={rerender} />
       <RestorePanel services={services} />
-      <h2>Log</h2>
-      <pre aria-label="log" style={{ maxHeight: 200, overflow: 'auto' }}>
-        {services.logger.entries
-          .map(
-            (e) => `${e.time.slice(11, 19)} ${e.level} ${e.msg} ${e.fields ? JSON.stringify(e.fields) : ''}`,
-          )
-          .join('\n')}
-      </pre>
+      <fieldset className="panel">
+        <legend>Log</legend>
+        <pre aria-label="log" className="log">
+          {services.logger.entries
+            .map(
+              (e) =>
+                `${e.time.slice(11, 19)} ${e.level} ${e.msg} ${e.fields ? JSON.stringify(e.fields) : ''}`,
+            )
+            .join('\n')}
+        </pre>
+      </fieldset>
       {prompt && (
-        <div role="dialog" aria-label="Action needed">
-          <p>{prompt.msg}</p>
-          <button onClick={prompt.resolve}>Continue</button>
+        <div className="modal-backdrop">
+          <div className="modal" role="dialog" aria-label="Action needed">
+            <p>{prompt.msg}</p>
+            <div className="actions">
+              <button className="primary" onClick={prompt.resolve}>
+                Continue
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </main>
@@ -112,8 +125,8 @@ function BatchPanel({
   const blocked = busy || !profile || (backup && canBackup && passphrase === '')
 
   return (
-    <section>
-      <h2>Batch</h2>
+    <fieldset className="panel">
+      <legend>Batch</legend>
       <label>
         Profile file{' '}
         <input
@@ -124,29 +137,37 @@ function BatchPanel({
         />
       </label>
       {error && (
-        <p role="alert" style={{ whiteSpace: 'pre-wrap' }}>
+        <p role="alert" className="notice bad">
           {error}
         </p>
       )}
       {profile && (
         <>
-          <p>
-            {profile.kind} profile, firmware <code>{profile.firmware_variant}</code>
-            {profile.kind === 'companion' && (profile.wipe_first ? ', wipes each node first' : ', no wipe')}
-            {profileHasSecrets(profile) && ' (contains keys; kept in memory only)'}
+          <p className="profile-summary">
+            <span className="chip">{profile.kind}</span>
+            <span>
+              firmware <code>{profile.firmware_variant}</code>
+            </span>
+            {profile.kind === 'companion' &&
+              (profile.wipe_first ? (
+                <span className="chip warn">wipes each node first</span>
+              ) : (
+                <span className="chip">no wipe</span>
+              ))}
+            {profileHasSecrets(profile) && <span className="chip">contains keys, kept in memory only</span>}
           </p>
-          <label>
+          <label className="check">
             <input type="checkbox" checked={flash} onChange={(e) => setFlash(e.target.checked)} /> Flash
             firmware
           </label>
           {canBackup && (
             <>
-              <label>
+              <label className="check">
                 <input type="checkbox" checked={backup} onChange={(e) => setBackup(e.target.checked)} /> Back
                 up this node first
               </label>
               {backup && (
-                <>
+                <div className="row">
                   <label>
                     Backup passphrase{' '}
                     <input type="text" value={passphrase} onChange={(e) => setPassphrase(e.target.value)} />
@@ -155,14 +176,16 @@ function BatchPanel({
                     Owner email (optional){' '}
                     <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                   </label>
-                </>
+                </div>
               )}
             </>
           )}
-          <p>
-            Next node: <strong>{next ?? '(keeps its own name)'}</strong>{' '}
+          <div className="next-node">
+            <span>
+              Next node: <strong>{next ?? '(keeps its own name)'}</strong>
+            </span>
             <label>
-              Counter{' '}
+              Counter
               <input
                 type="number"
                 min={1}
@@ -170,21 +193,32 @@ function BatchPanel({
                 onChange={(e) => (batch.setCounter(Number(e.target.value)), onDone())}
               />
             </label>
-          </p>
-          <button disabled={blocked} onClick={run}>
-            {busy ? 'Working…' : 'Run next node'}
-          </button>
-          {busy && progress && <progress max={100} value={progress.pct} aria-label={progress.step} />}
+          </div>
+          <div className="row">
+            <button className="primary" disabled={blocked} onClick={run}>
+              {busy ? 'Working…' : 'Run next node'}
+            </button>
+            {busy && progress && <progress max={100} value={progress.pct} aria-label={progress.step} />}
+          </div>
         </>
       )}
       {last && (
-        <p role="status">
-          {last.name}: {last.ok ? 'done' : 'FAILED'} (
-          {last.steps.map((s) => `${s.step} ${s.status}`).join(', ')})
-        </p>
+        <div role="status" className={`notice ${last.ok ? 'ok' : 'bad'}`}>
+          {last.name}: {last.ok ? 'done' : 'FAILED'}
+          <div className="steps">
+            {last.steps.map((s) => (
+              <span
+                key={s.step}
+                className={`chip ${s.status === 'ok' ? 'ok' : s.status === 'failed' ? 'bad' : ''}`}
+              >
+                {s.step} {s.status}
+              </span>
+            ))}
+          </div>
+        </div>
       )}
       <Results results={batch.results} onClear={() => (batch.clear(), onDone())} />
-    </section>
+    </fieldset>
   )
 }
 
@@ -199,30 +233,38 @@ function Results({ results, onClear }: { results: readonly NodeResult[]; onClear
   return (
     <>
       <h3>Results</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Time</th>
-            <th>Name</th>
-            <th>Kind</th>
-            <th>Result</th>
-            <th>Detail</th>
-          </tr>
-        </thead>
-        <tbody>
-          {results.map((r, i) => (
-            <tr key={i}>
-              <td>{r.startedAt.slice(11, 19)}</td>
-              <td>{r.name}</td>
-              <td>{r.kind}</td>
-              <td>{r.ok ? 'ok' : 'FAILED'}</td>
-              <td>{r.steps.find((s) => s.status === 'failed')?.detail ?? r.backupFile ?? ''}</td>
+      <div className="table-scroll">
+        <table className="results">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Name</th>
+              <th>Kind</th>
+              <th>Result</th>
+              <th>Detail</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      <button onClick={csv}>Download CSV</button>{' '}
-      <button onClick={onClear}>Clear log and reset counter</button>
+          </thead>
+          <tbody>
+            {results.map((r, i) => (
+              <tr key={i}>
+                <td>{r.startedAt.slice(11, 19)}</td>
+                <td>{r.name}</td>
+                <td>{r.kind}</td>
+                <td>
+                  <span className={`chip ${r.ok ? 'ok' : 'bad'}`}>{r.ok ? 'ok' : 'FAILED'}</span>
+                </td>
+                <td>{r.steps.find((s) => s.status === 'failed')?.detail ?? r.backupFile ?? ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="row">
+        <button onClick={csv}>Download CSV</button>
+        <button className="ghost" onClick={onClear}>
+          Clear log and reset counter
+        </button>
+      </div>
     </>
   )
 }
@@ -256,8 +298,8 @@ function RestorePanel({ services }: { services: AppServices }) {
   }
 
   return (
-    <section>
-      <h2>Restore a backup</h2>
+    <fieldset className="panel">
+      <legend>Restore a backup</legend>
       <label>
         Backup file{' '}
         <input
@@ -273,10 +315,13 @@ function RestorePanel({ services }: { services: AppServices }) {
         Restore to connected node
       </button>
       {msg && (
-        <p role="status" style={{ whiteSpace: 'pre-wrap' }}>
+        <p
+          role="status"
+          className={`notice ${msg.startsWith('Restored') && !msg.includes('problems') ? 'ok' : 'bad'}`}
+        >
           {msg}
         </p>
       )}
-    </section>
+    </fieldset>
   )
 }
