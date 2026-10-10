@@ -51,7 +51,7 @@ type CreateForm = {
 
 const emptyCreate: CreateForm = {
   name: '',
-  tag: 'ares-v1.0.0',
+  tag: 'ares-v1.0.1',
   freq: '910.525',
   bw: '62.5',
   sf: '7',
