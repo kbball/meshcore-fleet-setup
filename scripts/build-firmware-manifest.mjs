@@ -6,6 +6,9 @@
 //   node scripts/build-firmware-manifest.mjs --dir out/firmware --version v1.12.0-abc1234 --keep 5 \
 //     --entry "Xiao_nrf52_companion_radio_usb_ble|Seeed XIAO nRF52840|companion|path/to/firmware.zip" ...
 //
+// An entry may end with a fifth field, "dfu" or "uf2", saying how the board is flashed (UF2 = bootloader drive,
+// no serial port). Left out, the app decides from the env name (t1000e_* is UF2).
+//
 // Zips are copied to <dir>/<version>/<env>.zip. Existing entries are kept; only the newest --keep versions
 // stay (older version directories are deleted). Re-adding a version replaces that version's entries.
 import { createHash } from "node:crypto";
@@ -30,7 +33,7 @@ const { values } = parseArgs({
 });
 if (!values.dir || !values.version || !values.entry?.length) {
   console.error(
-    'usage: --dir <dir> --version <v> [--keep N] --entry "env|board|kind|zip" ...',
+    'usage: --dir <dir> --version <v> [--keep N] --entry "env|board|kind|zip[|dfu|uf2]" ...',
   );
   process.exit(2);
 }
@@ -47,13 +50,15 @@ let entries = existsSync(manifestPath)
 entries = entries.filter((e) => e.version !== version);
 
 for (const spec of values.entry) {
-  const [env, board, kind, src] = spec.split("|");
+  const [env, board, kind, src, bootloader] = spec.split("|");
   if (!env || !board || !["companion", "gateway", "tracker"].includes(kind) || !src)
     throw new Error(`bad --entry: ${spec}`);
+  if (bootloader !== undefined && !["dfu", "uf2"].includes(bootloader))
+    throw new Error(`bad bootloader in --entry: ${spec}`);
   const file = `${version}/${env}.zip`;
   copyFileSync(src, join(dir, file));
   const sha256 = createHash("sha256").update(readFileSync(src)).digest("hex");
-  entries.push({ board, env, kind, version, file, sha256 });
+  entries.push({ board, env, kind, version, file, sha256, ...(bootloader && { bootloader }) });
 }
 
 // keep the newest versions, ordered by when they were first added (manifest order), newest last

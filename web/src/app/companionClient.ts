@@ -13,6 +13,9 @@ export class CompanionError extends Error {
 /** Raised for RESP_CODE_DISABLED, e.g. private key export compiled out of the firmware. */
 export class CompanionDisabledError extends CompanionError {}
 
+/** The node never answered: wrong firmware on it, wrong port, or it is in a bootloader. */
+export class CompanionTimeoutError extends CompanionError {}
+
 /** One command at a time; unsolicited push frames (>= 0x80) are skipped while waiting for the reply. */
 export class CompanionClient {
   constructor(
@@ -35,7 +38,7 @@ export class CompanionClient {
       if (f[0] === RESP.DISABLED) throw new CompanionDisabledError(`${what} is disabled in this firmware`)
       return f
     }
-    throw new CompanionError(`timeout waiting for reply to ${what}`)
+    throw new CompanionTimeoutError(`timeout waiting for reply to ${what}`)
   }
 
   /** Request that must be answered with OK. */

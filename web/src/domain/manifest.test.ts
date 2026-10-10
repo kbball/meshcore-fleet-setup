@@ -1,4 +1,4 @@
-import { findFirmware, parseManifest } from './manifest'
+import { bootloaderOf, findFirmware, parseManifest } from './manifest'
 import { buildBackup, backupLabel } from './backup'
 import { bytesToHex } from './bytes'
 
@@ -31,7 +31,16 @@ describe('manifest', () => {
     })
     expect(m.entries[0].kind).toBe('gateway')
   })
+  it('picks the bootloader from the manifest, else from the env', () => {
+    const m = parseManifest({ entries: [{ ...e('x', '1'), bootloader: 'uf2' }] })
+    expect(m.entries[0].bootloader).toBe('uf2')
+    expect(bootloaderOf({ env: 'x', bootloader: 'uf2' })).toBe('uf2')
+    expect(bootloaderOf({ env: 't1000e_gps_tracker' })).toBe('uf2')
+    expect(bootloaderOf({ env: 'Xiao_nrf52_companion_radio_usb_ble' })).toBe('dfu')
+    expect(bootloaderOf({ env: 't1000e_gps_tracker', bootloader: 'dfu' })).toBe('dfu')
+  })
   it('rejects malformed manifests', () => {
+    expect(() => parseManifest({ entries: [{ ...e('x', '1'), bootloader: 'usb' }] })).toThrow(/bootloader/)
     expect(() => parseManifest({})).toThrow(/entries/)
     expect(() => parseManifest({ entries: [{ ...e('x', '1'), file: '' }] })).toThrow(/file/)
     expect(() => parseManifest({ entries: [{ ...e('x', '1'), kind: 'weird' }] })).toThrow(/kind/)

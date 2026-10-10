@@ -1,5 +1,6 @@
-import type { DfuLink, FrameLink, LineLink, NodeConnector, Prompt } from '../../app/ports'
+import type { DfuLink, FrameLink, LineLink, NodeConnector, Prompt, Uf2Drive } from '../../app/ports'
 import { openDfuLink, openFrameLink, openLineLink, touch1200 } from './links'
+import { pickUf2Drive } from './uf2Drive'
 
 type Info = { usbVendorId?: number; usbProductId?: number }
 const sameInfo = (a: Info, b: Info) => a.usbVendorId === b.usbVendorId && a.usbProductId === b.usbProductId
@@ -17,6 +18,7 @@ export class WebSerialConnector implements NodeConnector {
   constructor(
     private serial: Serial = navigator.serial,
     private bootloaderWaitMs = 5000,
+    private pickDrive: typeof pickUf2Drive = pickUf2Drive,
   ) {}
 
   private async current(): Promise<SerialPort> {
@@ -53,6 +55,20 @@ export class WebSerialConnector implements NodeConnector {
       this.port = await this.serial.requestPort()
     }
     return openDfuLink(this.port)
+  }
+
+  async openUf2Drive(prompt: Prompt): Promise<Uf2Drive> {
+    if (this.port) {
+      try {
+        await touch1200(this.port) // some bootloaders honour it; the T-1000-E may not
+      } catch {
+        // fall through to the manual path
+      }
+    }
+    await prompt(
+      'Put the board in bootloader mode: double-click its button (or hold it while plugging in USB) until a drive named like T1000-E appears. Then click Continue and choose that drive.',
+    )
+    return this.pickDrive()
   }
 
   async reopenFrames(timeoutMs: number): Promise<FrameLink> {

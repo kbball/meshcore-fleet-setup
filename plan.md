@@ -6,13 +6,15 @@ Everything below needs hardware or an external action; the code for the original
    - Flash one board with a `_usb_ble` env and confirm USB and BLE work at the same time.
    - Provision the T-1000-E tracker from the app (the tracker CLI path is the best understood).
    - Companion configure + verify, backup, wipe, restore on one spare board.
-   - Browser DFU on each board type (1200 baud touch, bootloader port discovery, re-enumeration).
-2. **This repo on GitHub**: protect `main` with the `Go`, `Frontend` and `Image` checks; confirm the first CI run (action versions copied from sweep-tracker).
-3. Verify against the protocol where the code assumed:
+   - Browser DFU on each board type (1200 baud touch, bootloader port discovery, re-enumeration). Found 2026-10-10: the T-1000-E has no serial DFU (UF2 drive only), now handled by UF2 flashing, which still needs a run through the app. The XIAO flashed fine with `adafruit-nrfutil` from its bootloader; the app's own DFU on it is untested. The 1200 baud touch did not enter the bootloader on the XIAO.
+   - UF2 drive write through Chrome's folder picker (`showDirectoryPicker` on `/Volumes/T1000-E`): whether Chrome allows the volume and how the write behaves as the board reboots are unverified.
+2. **Add the Seeed Wio Tracker L1 Pro** to the supported boards: a build env in the firmware fork, a release entry, a manifest entry (and `bootloader` if it is UF2-only), and a row in `CLAUDE.md` Targets. Check its bootloader and softdevice first: `appStartAddress` (`web/src/domain/uf2.ts`) only knows the softdevice ids 182 and 291.
+3. **This repo on GitHub**: protect `main` with the `Go`, `Frontend` and `Image` checks; confirm the first CI run (action versions copied from sweep-tracker).
+4. Verify against the protocol where the code assumed:
    - Flood scope key (deferred until MeshCore repeaters exist): the profile takes an explicit 16-byte key; check how the official app derives it from a region name and add that then.
    - Whether contacts can be read/restored over the protocol (backups do not include them).
    - Restore does not reflash the firmware version recorded in the backup.
-4. Try the image (or `make bundle`) on the actual event laptop OS; before the event pull or `docker save` the image.
+5. Try the image (or `make bundle`) on the actual event laptop OS; before the event pull or `docker save` the image.
 
 ## Event profile (design, not built)
 
