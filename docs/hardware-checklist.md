@@ -18,6 +18,8 @@ Nothing in the Web Serial or DFU adapters has touched a real board yet. Use a sp
 - [ ] wipe_first true: node comes back with a new identity, then gets configured.
 - [ ] Check what private key export returns on your firmware (`ENABLE_PRIVATE_KEY_EXPORT=1` is set in the root platformio.ini).
 
+- [ ] T-1000-E: profile with `gps.enabled: true` turns the GPS on (check a position appears); a XIAO/RAK with `enabled: true` fails with the "no GPS" message.
+
 ## 3. Browser DFU (each board type)
 
 - [ ] Does the 1200 baud touch enter the bootloader? (T-1000-E may need a button / double reset: the app prompts.)

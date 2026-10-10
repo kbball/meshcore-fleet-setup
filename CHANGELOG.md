@@ -5,10 +5,13 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 ## [Unreleased]
 
 ### Added
+- GPS setting for companion profiles (`gps: { enabled, interval_sec? }`) and in the profile builder: written with the node's `gps` / `gps_interval` settings, verified by read-back, captured in backups. Fails clearly on a node without a GPS.
+- Profile builder: a form for building and editing companion and tracker profile files (validated live, keys generated in the browser and masked in the preview, download or use directly for the batch).
 
 - UI theme adapted from sweep-tracker: shared colour tokens, light/dark/system toggle, DM Sans bundled for offline use, card/panel layout.
 
-- Offline bundle (`make bundle`): app, firmware and a stdlib Python local server (`serve.py`); relative asset paths.
+- Go server (`cmd/fleetsetup`) embedding the frontend and serving the firmware directory, with security headers, a healthcheck and a startup check of firmware against its manifest; distroless Docker image, compose file, image smoke test, GHCR publishing in CI.
+- Offline bundle (`make bundle`) for laptops without Docker: app, firmware and a stdlib Python local server (`serve.py`).
 
 - Project scaffold (Vite, React, TypeScript, Vitest), CI, and a Pages deploy workflow.
 - Sweep tracker provisioning over the tracker text CLI (port of `provision_tracker.py`): validate, apply, read back, reboot.
@@ -17,3 +20,7 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 - Browser nRF52 serial DFU flashing (Adafruit bootloader protocol), verified against `adafruit-nrfutil` test vectors; not yet tried on hardware.
 - Firmware manifest with sha256 verification; `scripts/build-firmware-manifest.mjs` and a draft fork workflow (`docs/fork/publish-firmware.yml`).
 - Batch UI: profile loading, next-node loop with name counter, results log with CSV export.
+
+### Changed
+
+- Frontend moved to `web/`.

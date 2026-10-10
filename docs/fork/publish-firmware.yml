@@ -1,18 +1,18 @@
 # Copy to .github/workflows/publish-firmware.yml in the firmware fork (kbball/MeshCore-tracker).
 # Not active in this repo. On a tag, builds the companion (USB+BLE) and tracker envs, adds them to the
 # `firmware` branch of kbball/meshcore-fleet-setup (an orphan branch holding only manifest.json and the
-# newest zips) and triggers that repo's Deploy workflow.
+# newest zips). To use it: `git clone --branch firmware --depth 1 <fleet-setup repo> firmware && rm -rf firmware/.git`,
+# then build the image (bakes ./firmware in) or mount ./firmware at /firmware.
 #
 # Needs a repo secret FLEET_SETUP_TOKEN: a fine-grained PAT for kbball/meshcore-fleet-setup with
-# Contents: read/write (to push the firmware branch) and Metadata: read, plus Actions: write is NOT needed;
-# repository_dispatch needs Contents: write on the target repo.
+# Contents: read/write (to push the firmware branch).
 #
 # Prerequisite: the fork needs one branch containing both the companion-usb-ble envs and the gps-tracker
 # envs; tag that branch.
 name: Publish firmware to fleet-setup
 on:
   push:
-    tags: ['v*']
+    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
@@ -20,7 +20,7 @@ permissions:
 
 env:
   FLEET_REPO: kbball/meshcore-fleet-setup
-  KEEP_VERSIONS: '5'
+  KEEP_VERSIONS: "5"
 
 jobs:
   publish:
@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - run: pip install platformio
       - name: Build
         run: |
@@ -67,8 +67,3 @@ jobs:
           git add -A
           git commit -q -m "Firmware ${{ steps.v.outputs.version }}"
           git push -f "https://x-access-token:${{ secrets.FLEET_SETUP_TOKEN }}@github.com/${FLEET_REPO}.git" firmware
-      - name: Trigger the Pages deploy
-        run: |
-          curl -fsS -X POST -H "Authorization: Bearer ${{ secrets.FLEET_SETUP_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${FLEET_REPO}/dispatches" -d '{"event_type":"firmware-updated"}'

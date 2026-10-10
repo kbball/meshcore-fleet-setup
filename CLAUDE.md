@@ -1,6 +1,15 @@
 # meshcore-fleet-setup
 
-Chrome web app that flashes and configures batches of MeshCore companion nodes before an event deployment. Static, browser-only: React + TypeScript (Vite), no Go backend or Postgres, so the Go/Postgres/Goose/embed rules from the global config do not apply. Everything else in them (layering, config, errors, testing, versioning, CI, git) does, as adapted below. This file wins on conflict.
+Chrome web app that flashes and configures batches of MeshCore companion nodes before an event deployment. React + TypeScript (Vite) frontend in `web/`, served by a small Go server (`cmd/fleetsetup`) that embeds the built frontend (`web/embed.go`) and serves a firmware directory. One distroless container. No database: the server holds no state (the browser does the device work over Web Serial), so the Postgres/Goose rules from the global config do not apply. Everything else (layering, config, errors, testing, versioning, CI, git) does, as adapted below. This file wins on conflict.
+
+## Server (Go)
+
+- `internal/domain` (firmware manifest types and validation), `internal/app` (`Catalog` checks firmware files against the manifest at startup; ports in `ports.go`), `internal/adapters/{httpapi,fsstore,memory}`, `internal/config`, `cmd/fleetsetup` (composition root + `serve | healthcheck | version`).
+- Env: `FLEET_ADDR` (default `:8080`), `FLEET_FIRMWARE_DIR` (manifest.json + zips, served read-only under `/firmware/`; unset disables), `LOG_LEVEL`. slog JSON to stderr.
+- Serves `/` (embedded app, `assets/` immutable-cached), `/firmware/` (no directory listings, no-store), `/healthz`. Every response carries a CSP (`default-src 'self'`), nosniff, no-referrer and `Permissions-Policy: serial=(self)`. Keep the CSP tight: the app must never load or call anything off-origin.
+- Bind to localhost on the event laptop (Web Serial needs a secure origin; `http://localhost` qualifies). The compose file publishes on 127.0.0.1 only.
+- Image bakes in `./firmware` at build time; a volume at `/firmware` overrides it.
+- `go test` must be run on explicit packages (`make test`), not `./...`: `web/node_modules` contains Go files.
 
 ## Architecture (hexagonal, frontend mirror)
 
@@ -17,7 +26,7 @@ Dependency direction is always inward: `adapters -> app -> domain`.
 
 ## Configuration (12-factor)
 
-- Build/runtime config from env (`VITE_*`), nothing hardcoded (e.g. `VITE_MANIFEST_URL`). `.env.example` is the canonical committed list; `.env` is gitignored.
+- Server config from `FLEET_*` env vars, frontend build config from `VITE_*` (`web/.env.example`). Nothing hardcoded. Root `.env.example` is the canonical list for the server; `.env` is gitignored.
 - Runs fully offline except explicit, user-triggered actions (fetching a firmware manifest/zip).
 - No in-memory-only state that matters: persist loaded profile choice and batch results log locally (IndexedDB/localStorage) so a page reload does not lose a batch. Channel secrets are never persisted unless the user opts in.
 
@@ -38,7 +47,7 @@ Dependency direction is always inward: `adapters -> app -> domain`.
 - Semver; `VERSION` file at repo root is the single source (Makefile and build read it; app reports it, with `-pr<N>`/`-dev` suffix for non-releases).
 - Every user-visible change gets a `CHANGELOG.md` entry (Keep a Changelog) under `Unreleased`. README describes current state only. `plan.md` lists only remaining work; delete items when done and log decisions with rationale.
 - Never commit directly to `main`; branch `feature/...`, `fix/...`, `chore/...`. Merge via PR with required checks passing. Commit only when asked.
-- CI (`.github/workflows/ci.yml`; triggers PR, push to main, workflow_dispatch; PR runs cancel when superseded; least-privilege permissions): a **Frontend** job (Node LTS, npm cache, `npm ci`, `npm run cover`, `npm run build`) and a publish job that validates `VERSION` is semver and deploys the static build (GitHub Pages) from `main`. Fork PRs build and test only. Reference layout: `~/code/sweep-tracker`.
+- CI (`.github/workflows/ci.yml`; triggers PR, push to main, workflow_dispatch; PR runs cancel when superseded; least-privilege permissions): jobs **Go** (gofmt, `make test`, `make cover`), **Frontend** (`npm ci`, `npm run cover`, `npm run build` in `web/`) and **Image** (needs both: validates `VERSION`, builds, runs `scripts/smoke-image.sh`, publishes to GHCR as `ghcr.io/kbball/meshcore-fleet-setup` multi-arch: release tags from `main`, `pr-<n>` previews for same-repo PRs, nothing for fork PRs; a weekly/PR-close workflow prunes previews). Reference layout: `~/code/sweep-tracker`.
 
 ## Targets
 
@@ -53,9 +62,9 @@ Seeed T-1000-E, Seeed XIAO nRF52840 + Wio-SX1262, RAK4631. All nRF52840.
 
 ## Design decisions
 
-- **Runs offline at the event.** The primary distribution is the offline bundle (`make bundle`): app + firmware + `serve.py` (Python 3 stdlib, serves http://localhost:8080; Web Serial needs a secure origin and localhost qualifies). No backend, no internet. Pages deploy is a convenience for getting the bundle contents, not a runtime dependency. Keep all asset URLs relative (`base: './'`).
+- **Runs offline at the event.** Primary: the Docker image (`docker compose up`, pulled or loaded before the event). Fallback for laptops without Docker: `make bundle` (app + firmware + `serve.py`, Python 3 stdlib). Neither needs internet. Keep all asset URLs relative (`base: './'`).
 
-- No per-deployment compiling. One binary per board per firmware version, hosted with a manifest on this app's own GitHub Pages site (same origin as the app, so no CORS). The fork's tag workflow (draft in `docs/fork/publish-firmware.yml`) pushes `manifest.json` and `<version>/<env>.zip` to an orphan `firmware` branch of this repo using a PAT, then triggers `.github/workflows/deploy.yml`, which merges that branch into the Pages site. Manifest entries: `{board, env, version, file, sha256}`; the app verifies sha256 before flashing. Only the `.zip` is published (about 350-500 KB each, about 1.25 MB per version for all three; the `.hex` is not needed). Keep the last N versions so the Pages site stays small; the deploy replaces the whole site, so the workflow must carry forward retained versions. Adapt `.github/workflows/build-companion-firmwares.yml` in the fork (not yet read).
+- No per-deployment compiling. One binary per board per firmware version, served by the same server as the app (same origin, so no CORS) from `FLEET_FIRMWARE_DIR`. The fork's tag workflow (draft in `docs/fork/publish-firmware.yml`) pushes `manifest.json` and `<version>/<env>.zip` to an orphan `firmware` branch of this repo using a PAT; clone that branch into `./firmware` to bake it into the image or mount it. Manifest entries: `{board, env, version, file, sha256}`; the app verifies sha256 before flashing. Only the `.zip` is published (about 350-500 KB each, about 1.25 MB per version for all three; the `.hex` is not needed). Keep only the last N versions (the manifest script prunes older ones).
 - Transport is Web Serial over USB, not Web Bluetooth (no pairing, faster, port permission is remembered). Skip BLE for batch work.
 - All configuration is runtime over the companion protocol (`docs/companion_protocol.md`, command IDs in `examples/companion_radio/MyMesh.cpp` in the fork). The Python `meshcore` library is a framing reference.
 - Per-node flow: (0) backup (see below); (a) flash: enter bootloader (T-1000-E needs button/double-reset, so prompt), upload DFU zip over Web Serial; (b) optional wipe: `CMD_FACTORY_RESET` or erase extrafs during DFU; (c) reconnect, since the USB port disappears and reappears on reboot/reflash; (d) configure, then read back to verify.
@@ -88,7 +97,7 @@ A second device kind: the GPS tracker firmware on fork branch `gps-tracker` (`ex
 
 ## Profile format
 
-One shareable JSON file with a `kind` of `companion` (below) or `tracker` (see the sweep tracker section). A companion profile: `radio` (freq, bw, sf, cr, tx power), `channels` (ordered `{name, secret}`), `advert` (name template like `AS3-{n}`, lat/lon, flood scope), `identity` (generate per node or import), `ble_pin`, `wipe_first` (bool), `firmware_variant`. With `wipe_first: false`, write only the listed fields. Wiping is optional per profile.
+One shareable JSON file with a `kind` of `companion` (below) or `tracker` (see the sweep tracker section). A companion profile: `radio` (freq, bw, sf, cr, tx power), `channels` (ordered `{name, secret}`), `advert` (name template like `AS3-{n}`, lat/lon, flood scope), `identity` (generate per node or import), `ble_pin`, `gps` (`{enabled, interval_sec?}`, companion only; set through the node's `gps` / `gps_interval` custom variables, which exist only on a board with a detected GPS such as the T-1000-E; firmware default is off and a wipe turns it off), `wipe_first` (bool), `firmware_variant`. With `wipe_first: false`, write only the listed fields. Wiping is optional per profile.
 
 ## Secrets
 

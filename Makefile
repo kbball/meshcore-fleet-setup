@@ -1,28 +1,51 @@
 VERSION := $(shell cat VERSION)
+COVER_MIN := 80
+IMAGE ?= ghcr.io/kbball/meshcore-fleet-setup
+GO_PKGS := ./cmd/... ./internal/... ./web
 
-.PHONY: install test cover lint fmt build run bundle
+.PHONY: install web build test cover lint fmt run image smoke bundle web-test web-cover check
 install:
-	npm ci
+	cd web && npm ci
 
-test: ## type check + unit tests
-	npm run typecheck
-	npm test
+web: ## build the frontend into web/dist (embedded into the Go binary)
+	cd web && npm ci && npm run build
 
-cover: ## fails below the thresholds in vite.config.ts (80%)
-	npm run cover
+build: web
+	CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o bin/fleetsetup ./cmd/fleetsetup
+
+run: web ## serve the built app on http://localhost:8080 (FLEET_FIRMWARE_DIR=./firmware by default)
+	FLEET_FIRMWARE_DIR=$${FLEET_FIRMWARE_DIR:-firmware} go run -ldflags "-X main.version=$(VERSION)" ./cmd/fleetsetup serve
+
+test: ## go vet + race tests
+	go vet $(GO_PKGS)
+	go test -race $(GO_PKGS)
+
+cover: ## fails under COVER_MIN% for Go
+	go test -coverprofile=coverage.out ./cmd/... ./internal/...
+	@go tool cover -func=coverage.out | tail -1
+	@go tool cover -func=coverage.out | awk -v min=$(COVER_MIN) '/^total:/ { sub("%","",$$3); if ($$3+0 < min) { print "Go coverage below " min "%"; exit 1 } }'
+
+web-test: ## frontend type check + tests
+	cd web && npm run typecheck && npm test
+
+web-cover: ## fails under the thresholds in web/vite.config.ts (80%)
+	cd web && npm run cover
+
+check: test cover web-test web-cover lint ## everything CI runs apart from the image
 
 lint:
-	npm run lint
-	npm run format:check
+	golangci-lint run $(GO_PKGS)
+	cd web && npm run lint && npm run format:check
 
 fmt:
-	npm run format
+	gofmt -w cmd internal web/embed.go
+	cd web && npm run format
 
-build:
-	npm run build
+image: ## build the Docker image, tagged with VERSION and latest (bakes in ./firmware)
+	docker build --build-arg VERSION=$(VERSION) -t $(IMAGE):$(VERSION) -t $(IMAGE):latest .
 
-run:
-	npm run dev
+smoke: image ## run the image and push real requests through it (the check CI runs)
+	scripts/smoke-image.sh $(IMAGE):$(VERSION) $(VERSION)
 
-bundle: ## offline zip: app + firmware + local server (FIRMWARE=dir with manifest.json, default ./firmware)
+bundle: ## offline zip: app + firmware + python server, for laptops without Docker (FIRMWARE=dir with manifest.json)
 	scripts/bundle.sh $(or $(FIRMWARE),firmware)

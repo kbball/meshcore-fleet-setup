@@ -1,0 +1,49 @@
+name: Clean up preview images
+
+# Pull requests publish a preview image (pr-<number>). Once the pull request is merged or closed
+# the preview is no use, so it is deleted here. A weekly run catches anything missed, and also
+# removes the older previews of pull requests that are still open and the pieces of multi-arch
+# images that nothing refers to any more. Releases (latest, sha-<commit>, 1.2.3) are never touched.
+on:
+  pull_request:
+    types: [closed]
+  schedule:
+    - cron: "17 3 * * 1" # Mondays, 03:17 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Only list what would be deleted
+        type: boolean
+        default: true
+
+# One cleanup at a time, and never cut short half way.
+concurrency:
+  group: preview-cleanup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: read
+
+jobs:
+  cleanup:
+    name: Delete unused preview images
+    runs-on: ubuntu-latest
+    # A pull request from a fork never published a preview, and its token could not delete one.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v7
+      - name: Log in to GHCR (to read image manifests)
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check the selection logic first
+        run: scripts/prune-previews.test.sh
+      - name: Delete unused previews
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARGS: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }}
+        run: scripts/prune-previews.sh ${ARGS:+"$ARGS"}

@@ -11,10 +11,11 @@ VERSION=$(cat VERSION)
 FW=${1:-firmware}
 [ -f "$FW/manifest.json" ] || { echo "no $FW/manifest.json; build one with scripts/build-firmware-manifest.mjs" >&2; exit 1; }
 
-npm run build
+(cd web && npm ci && npm run build)
 STAGE=dist-bundle/fleet-setup-$VERSION
 rm -rf dist-bundle && mkdir -p "$STAGE"
-cp -R dist/. "$STAGE/"
+cp -R web/dist/. "$STAGE/"
+rm -f "$STAGE/.gitkeep"
 rm -rf "$STAGE/firmware" && cp -R "$FW" "$STAGE/firmware"
 cp scripts/serve.py "$STAGE/serve.py"
 cat > "$STAGE/README.txt" <<TXT
