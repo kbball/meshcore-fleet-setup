@@ -3,7 +3,7 @@
   "version": 1,
   "name": "Example 100",
   "created": "2026-10-10T12:00:00Z",
-  "firmware_tag": "ares-v1.0.0",
+  "firmware_tag": "ares-v1.0.1",
   "radio": { "freq": 910.525, "bw": 62.5, "sf": 7, "cr": 5, "tx_power": 20 },
   "sweeps_secret": "00000000000000000000000000000001",
   "all_race_secret": "00000000000000000000000000000002",

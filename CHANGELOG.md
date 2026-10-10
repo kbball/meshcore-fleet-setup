@@ -5,6 +5,7 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 ## [Unreleased]
 
 ### Changed
+- The Event tab and `profiles/event.example.json` default to firmware release `ares-v1.0.1`, the first release that lists the gateway with its own kind.
 - The Docker image no longer copies `./firmware` in: it has an empty `/firmware` to mount the release onto. The smoke test checks that the image itself carries no firmware and that `/firmware/.release` is served.
 - Firmware is distributed as a GitHub Release of the firmware fork (built when an `ares-vX.Y.Z` tag is pushed) instead of an orphan `firmware` branch of this repository. Documentation updated; `scripts/build-firmware-manifest.mjs` is now run by the fork's workflow, so its command line is kept stable.
 
