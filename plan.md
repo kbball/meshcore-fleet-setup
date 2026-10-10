@@ -14,7 +14,8 @@ Everything below needs hardware or an external action; the code for the original
    - Hashtag channels (`#name`): the profile takes explicit secrets only; add derivation if wanted.
    - Whether contacts can be read/restored over the protocol (backups do not include them).
    - Restore does not reflash the firmware version recorded in the backup.
-5. Smoke test script / container image: not applicable (static site), so CI builds and deploys Pages instead.
+5. Try `make bundle` on the actual event laptop OS (needs Python 3; Windows laptops may need it installed).
+6. Smoke test script / container image: not applicable (static site), so CI builds and deploys Pages instead.
 
 ## Decisions
 

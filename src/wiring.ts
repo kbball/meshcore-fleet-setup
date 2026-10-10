@@ -22,7 +22,7 @@ export function buildApp(prompt: Prompt, onProgress: (step: string, pct: number)
   const connector = new WebSerialConnector()
   const runner = new NodeRunner({
     connector,
-    firmware: new HttpFirmwareSource(import.meta.env.VITE_MANIFEST_URL ?? '/firmware/manifest.json'),
+    firmware: new HttpFirmwareSource(import.meta.env.VITE_MANIFEST_URL ?? './firmware/manifest.json'),
     cipher,
     sink: new DownloadSink(),
     clock: systemClock,

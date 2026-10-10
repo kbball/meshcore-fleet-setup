@@ -53,6 +53,8 @@ Seeed T-1000-E, Seeed XIAO nRF52840 + Wio-SX1262, RAK4631. All nRF52840.
 
 ## Design decisions
 
+- **Runs offline at the event.** The primary distribution is the offline bundle (`make bundle`): app + firmware + `serve.py` (Python 3 stdlib, serves http://localhost:8080; Web Serial needs a secure origin and localhost qualifies). No backend, no internet. Pages deploy is a convenience for getting the bundle contents, not a runtime dependency. Keep all asset URLs relative (`base: './'`).
+
 - No per-deployment compiling. One binary per board per firmware version, hosted with a manifest on this app's own GitHub Pages site (same origin as the app, so no CORS). The fork's tag workflow (draft in `docs/fork/publish-firmware.yml`) pushes `manifest.json` and `<version>/<env>.zip` to an orphan `firmware` branch of this repo using a PAT, then triggers `.github/workflows/deploy.yml`, which merges that branch into the Pages site. Manifest entries: `{board, env, version, file, sha256}`; the app verifies sha256 before flashing. Only the `.zip` is published (about 350-500 KB each, about 1.25 MB per version for all three; the `.hex` is not needed). Keep the last N versions so the Pages site stays small; the deploy replaces the whole site, so the workflow must carry forward retained versions. Adapt `.github/workflows/build-companion-firmwares.yml` in the fork (not yet read).
 - Transport is Web Serial over USB, not Web Bluetooth (no pairing, faster, port permission is remembered). Skip BLE for batch work.
 - All configuration is runtime over the companion protocol (`docs/companion_protocol.md`, command IDs in `examples/companion_radio/MyMesh.cpp` in the fork). The Python `meshcore` library is a framing reference.

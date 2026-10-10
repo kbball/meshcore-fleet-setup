@@ -1,6 +1,6 @@
 VERSION := $(shell cat VERSION)
 
-.PHONY: install test cover lint fmt build run
+.PHONY: install test cover lint fmt build run bundle
 install:
 	npm ci
 
@@ -23,3 +23,6 @@ build:
 
 run:
 	npm run dev
+
+bundle: ## offline zip: app + firmware + local server (FIRMWARE=dir with manifest.json, default ./firmware)
+	scripts/bundle.sh $(or $(FIRMWARE),firmware)

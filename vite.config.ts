@@ -6,6 +6,7 @@ import react from '@vitejs/plugin-react'
 const version = readFileSync('VERSION', 'utf8').trim()
 
 export default defineConfig({
+  base: './', // relative asset paths: works from any folder or server, including the offline bundle
   plugins: [react()],
   define: { __APP_VERSION__: JSON.stringify(version) },
   build: { outDir: 'dist', emptyOutDir: true },

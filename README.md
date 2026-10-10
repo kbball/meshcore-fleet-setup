@@ -16,6 +16,10 @@ Design notes and rules are in `CLAUDE.md`; remaining work in `plan.md`.
 
 Firmware is fetched from `./firmware/manifest.json` on the same site and checked against its sha256 before flashing.
 
+## Offline bundle (for the event)
+
+`make bundle FIRMWARE=<dir with manifest.json>` writes `dist-bundle/fleet-setup-<VERSION>.zip`. On the event laptop: unzip, run `python3 serve.py`, use Chrome or Edge. No internet needed.
+
 ## Develop
 
 ```
