@@ -6,6 +6,8 @@ import { restoreNode } from '../app/restoreNode'
 import { parseProfile, profileHasSecrets, type Profile } from '../domain/profile'
 import { buildApp, systemClock, type App as AppServices } from '../wiring'
 import { AppHeader } from './AppHeader'
+import type { EventFile } from '../domain/event'
+import { EventPanel } from './EventPanel'
 import { ProfileEditor } from './ProfileEditor'
 
 type PromptState = { msg: string; resolve: () => void } | null
@@ -15,8 +17,9 @@ export function App({ version, factory = buildApp }: { version: string; factory?
   const [prompt, setPrompt] = useState<PromptState>(null)
   const [progress, setProgress] = useState<{ step: string; pct: number } | null>(null)
   const [, rerender] = useReducer((n: number) => n + 1, 0)
-  const [tab, setTab] = useState<'batch' | 'builder'>('batch')
+  const [tab, setTab] = useState<'batch' | 'builder' | 'event'>('batch')
   const [profile, setProfile] = useState<Profile | null>(null) // held in memory only; never persisted
+  const [event, setEvent] = useState<EventFile | null>(null) // holds every channel secret: memory only
 
   const services = useMemo<AppServices>(
     () =>
@@ -54,6 +57,14 @@ export function App({ version, factory = buildApp }: { version: string; factory?
         >
           Profile builder
         </button>
+        <button
+          role="tab"
+          aria-selected={tab === 'event'}
+          className={tab === 'event' ? 'active' : ''}
+          onClick={() => setTab('event')}
+        >
+          Event
+        </button>
       </nav>
       {tab === 'batch' ? (
         <>
@@ -66,6 +77,15 @@ export function App({ version, factory = buildApp }: { version: string; factory?
           />
           <RestorePanel services={services} />
         </>
+      ) : tab === 'event' ? (
+        <EventPanel
+          event={event}
+          setEvent={setEvent}
+          onUse={(p) => {
+            setProfile(p)
+            setTab('batch')
+          }}
+        />
       ) : (
         <ProfileEditor
           initial={profile}
