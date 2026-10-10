@@ -161,3 +161,30 @@ describe('sections that are not objects', () => {
     ).toContain('advert.flood_scope must be an object')
   })
 })
+
+describe('gateway profile', () => {
+  const gw = {
+    kind: 'gateway',
+    firmware_variant: 'RAK_4631_companion_radio_usb_ethernet',
+    wipe_first: true,
+    channels: [{ name: 'Sweeps', secret: '00112233445566778899aabbccddeeff' }],
+    advert: { name_template: 'AS3-GW' },
+  }
+  it('is valid and counts as carrying secrets', () => {
+    expect(validateProfile(gw)).toEqual([])
+    expect(profileHasSecrets(parseProfile(JSON.stringify(gw)))).toBe(true)
+  })
+  it('has no BLE, so a PIN is an error', () => {
+    expect(validateProfile({ ...gw, ble_pin: 123456 })).toEqual([
+      'a gateway has no BLE, so ble_pin does not apply',
+    ])
+  })
+  it('still checks the shared fields and rejects unknown keys', () => {
+    expect(validateProfile({ ...gw, wipe_first: 'yes', nope: 1 }).join()).toMatch(
+      /unknown key 'nope'.*wipe_first/,
+    )
+    expect(validateProfile({ ...gw, kind: 'router' })).toEqual([
+      "kind must be 'companion', 'gateway' or 'tracker'",
+    ])
+  })
+})

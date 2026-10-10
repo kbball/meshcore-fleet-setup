@@ -38,7 +38,8 @@ export function ProfileEditor({ initial, onUse, random = randomHex }: Props) {
   const profile = useMemo(() => toProfile(form), [form])
   const problems = useMemo(() => validateProfile(profile), [profile])
   const set = (patch: Partial<ProfileForm>) => setForm((f) => ({ ...f, ...patch }))
-  const isCompanion = form.kind === 'companion'
+  const isCompanion = form.kind !== 'tracker'
+  const isGateway = form.kind === 'gateway'
   const variants = FIRMWARE_VARIANTS.filter((v) => v.kind === form.kind)
 
   function switchKind(kind: ProfileForm['kind']) {
@@ -87,6 +88,7 @@ export function ProfileEditor({ initial, onUse, random = randomHex }: Props) {
           Node type
           <select value={form.kind} onChange={(e) => switchKind(e.target.value as ProfileForm['kind'])}>
             <option value="companion">Companion (people)</option>
+            <option value="gateway">Gateway (Ethernet)</option>
             <option value="tracker">Sweep tracker</option>
           </select>
         </label>
@@ -108,7 +110,7 @@ export function ProfileEditor({ initial, onUse, random = randomHex }: Props) {
           <input
             value={form.name_template}
             onChange={(e) => set({ name_template: e.target.value })}
-            placeholder={isCompanion ? 'AS3-{n}' : 'Sweep{n}'}
+            placeholder={isGateway ? 'AS3-GW' : isCompanion ? 'AS3-{n}' : 'Sweep{n}'}
           />
           <span className="hint">
             {'{n}'} becomes the node counter. Leave empty to keep each node&apos;s own name.
@@ -116,6 +118,12 @@ export function ProfileEditor({ initial, onUse, random = randomHex }: Props) {
         </label>
       </div>
 
+      {isGateway && (
+        <p className="notice">
+          The gateway gets its address by DHCP. Reserve it by MAC address on the AREDN node so the go-box can
+          always reach it (TCP port 5000). It has no BLE, so there is no PIN.
+        </p>
+      )}
       {isCompanion ? (
         <CompanionFields form={form} set={set} random={random} />
       ) : (
@@ -304,11 +312,13 @@ function CompanionFields({ form, set, random }: SectionProps) {
             <button onClick={() => set({ private_key: random(64) })}>Generate key</button>
           </>
         )}
-        <Num
-          label="BLE PIN (6 digits, 0 = none)"
-          value={form.ble_pin}
-          onChange={(v) => set({ ble_pin: v })}
-        />
+        {form.kind !== 'gateway' && (
+          <Num
+            label="BLE PIN (6 digits, 0 = none)"
+            value={form.ble_pin}
+            onChange={(v) => set({ ble_pin: v })}
+          />
+        )}
       </div>
       {form.identity === 'import' && (
         <p className="notice warn">Every node will share this identity. Only do this if you mean it.</p>

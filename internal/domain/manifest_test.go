@@ -20,6 +20,9 @@ func TestParseManifestAccepts(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, m.Entries, 1)
 	assert.Equal(t, "v1/e.zip", m.Entries[0].File)
+	m, err = ParseManifest([]byte(entryJSON("v1/g.zip", "gateway", goodSum)))
+	require.NoError(t, err)
+	assert.Equal(t, "gateway", m.Entries[0].Kind)
 	_, err = ParseManifest([]byte(`{"entries":[]}`))
 	assert.NoError(t, err)
 }

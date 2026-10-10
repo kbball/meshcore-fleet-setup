@@ -404,3 +404,13 @@ describe('station bundle', () => {
     expect(json).toContain(ev.sweeps_secret)
   })
 })
+
+describe('gateway kind in derived output', () => {
+  it('is kind gateway without a BLE PIN even when the event has one', () => {
+    const ev = { ...make(1), ble_pin: 123456 }
+    const g = stationGatewayProfile(ev, ev.stations[0])
+    expect(g.kind).toBe('gateway')
+    expect('ble_pin' in g).toBe(false)
+    expect(stationCompanionProfile(ev, ev.stations[0]).ble_pin).toBe(123456)
+  })
+})

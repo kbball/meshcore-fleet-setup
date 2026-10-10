@@ -1,8 +1,9 @@
 # MeshCore Fleet Setup
 
-Chrome web app that flashes and configures batches of MeshCore nodes over Web Serial before an event. Two kinds of node:
+Chrome web app that flashes and configures batches of MeshCore nodes over Web Serial before an event. Three kinds of node:
 
 - **Companion** nodes for people (radio, channels, name, location, identity, BLE PIN; optional wipe; optional encrypted backup).
+- **Gateways** (RAK4631 + Ethernet, the station's link to the go-box): configured like a companion, without a BLE PIN. Its address comes from DHCP: reserve it by MAC on the AREDN node.
 - **Sweep trackers** (GPS tracker firmware, configured through its text CLI).
 
 Design notes and rules are in `CLAUDE.md`; remaining work in `plan.md`.

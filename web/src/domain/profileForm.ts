@@ -3,7 +3,7 @@
 import type { CompanionProfile, Profile, TrackerProfile } from './profile'
 import type { TrackerConfig } from './tracker'
 
-export const FIRMWARE_VARIANTS: { env: string; label: string; kind: 'companion' | 'tracker' }[] = [
+export const FIRMWARE_VARIANTS: { env: string; label: string; kind: ProfileForm['kind'] }[] = [
   {
     env: 'Xiao_nrf52_companion_radio_usb_ble',
     label: 'XIAO nRF52840 companion (USB + BLE)',
@@ -11,6 +11,11 @@ export const FIRMWARE_VARIANTS: { env: string; label: string; kind: 'companion' 
   },
   { env: 't1000e_companion_radio_usb_ble', label: 'T-1000-E companion (USB + BLE)', kind: 'companion' },
   { env: 'RAK_4631_companion_radio_usb_ble', label: 'RAK4631 companion (USB + BLE)', kind: 'companion' },
+  {
+    env: 'RAK_4631_companion_radio_usb_ethernet',
+    label: 'RAK4631 + Ethernet gateway (USB + TCP)',
+    kind: 'gateway',
+  },
   { env: 't1000e_gps_tracker', label: 'T-1000-E sweep tracker', kind: 'tracker' },
   { env: 'Xiao_nrf52_gps_tracker', label: 'XIAO nRF52840 sweep tracker', kind: 'tracker' },
 ]
@@ -18,7 +23,7 @@ export const FIRMWARE_VARIANTS: { env: string; label: string; kind: 'companion' 
 export type ChannelForm = { name: string; secret: string }
 
 export type ProfileForm = {
-  kind: 'companion' | 'tracker'
+  kind: 'companion' | 'gateway' | 'tracker'
   firmware_variant: string
   name_template: string // companion: advert name; tracker: node name
   // companion
@@ -58,7 +63,7 @@ const TRACKER_KEYS: (keyof TrackerConfig)[] = [
 ]
 const TRACKER_TEXT = new Set<keyof TrackerConfig>(['channel_name', 'channel_psk', 'nofix_mode'])
 
-export function emptyForm(kind: 'companion' | 'tracker' = 'companion'): ProfileForm {
+export function emptyForm(kind: ProfileForm['kind'] = 'companion'): ProfileForm {
   const tracker = Object.fromEntries(TRACKER_KEYS.map((k) => [k, ''])) as ProfileForm['tracker']
   Object.assign(tracker, {
     interval_sec: '300',
@@ -71,8 +76,8 @@ export function emptyForm(kind: 'companion' | 'tracker' = 'companion'): ProfileF
   })
   return {
     kind,
-    firmware_variant: kind === 'companion' ? 'Xiao_nrf52_companion_radio_usb_ble' : 't1000e_gps_tracker',
-    name_template: kind === 'companion' ? 'AS-{n}' : 'Sweep{n}',
+    firmware_variant: FIRMWARE_VARIANTS.find((v) => v.kind === kind)!.env,
+    name_template: { companion: 'AS-{n}', gateway: 'AS-GW', tracker: 'Sweep{n}' }[kind],
     wipe_first: true,
     radio: { enabled: true, freq: '910.525', bw: '62.5', sf: '7', cr: '5', tx_power: '20' },
     channels: [{ name: 'Public', secret: 'public' }],
@@ -110,7 +115,7 @@ export function toProfile(f: ProfileForm): Profile {
     return p
   }
   const p: CompanionProfile = {
-    kind: 'companion',
+    kind: f.kind,
     firmware_variant: f.firmware_variant,
     wipe_first: f.wipe_first,
   }
@@ -138,7 +143,7 @@ export function toProfile(f: ProfileForm): Profile {
   if (f.identity === 'generate') p.identity = { mode: 'generate' }
   if (f.identity === 'import') p.identity = { mode: 'import', private_key: f.private_key.trim() }
   const pin = num(f.ble_pin)
-  if (pin !== undefined) p.ble_pin = pin
+  if (pin !== undefined && f.kind !== 'gateway') p.ble_pin = pin
   if (f.autoadd.enabled) {
     p.autoadd = { config: Number(f.autoadd.config) }
     const hops = num(f.autoadd.max_hops)

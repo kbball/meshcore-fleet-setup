@@ -423,3 +423,12 @@ describe('batch', () => {
     expect(csv).not.toContain(secret)
   })
 })
+
+describe('gateway run', () => {
+  it('configures a gateway like a companion and records its kind', async () => {
+    const { runner } = setup()
+    const r = await runner.runCompanion({ ...profile, kind: 'gateway' }, { nodeName: 'AS3-GW', flash: false })
+    expect(r.ok).toBe(true)
+    expect(r.kind).toBe('gateway')
+  })
+})

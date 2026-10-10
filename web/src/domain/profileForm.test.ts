@@ -119,3 +119,21 @@ describe('gps in the form', () => {
     expect(toProfile(f)).not.toHaveProperty('gps.interval_sec')
   })
 })
+
+describe('gateway form', () => {
+  it('defaults to the ethernet env and a valid profile', () => {
+    const f = emptyForm('gateway')
+    expect(f.firmware_variant).toBe('RAK_4631_companion_radio_usb_ethernet')
+    const p = toProfile(f)
+    expect(p.kind).toBe('gateway')
+    expect(validateProfile(p)).toEqual([])
+  })
+  it('never writes a BLE PIN and round trips', () => {
+    const f = emptyForm('gateway')
+    f.ble_pin = '123456'
+    const p = toProfile(f)
+    expect('ble_pin' in p).toBe(false)
+    expect(toProfile(fromProfile(p))).toEqual(p)
+    expect(profileFileName(p)).toBe('gateway-profile.json')
+  })
+})

@@ -25,7 +25,7 @@ export type StepResult = { step: StepName; status: 'ok' | 'skipped' | 'failed'; 
 /** One line of the results log. Never contains keys or passphrases. */
 export type NodeResult = {
   name: string
-  kind: 'companion' | 'tracker'
+  kind: 'companion' | 'gateway' | 'tracker'
   publicKey?: string
   startedAt: string
   steps: StepResult[]
@@ -62,7 +62,7 @@ export class NodeRunner {
   constructor(private d: RunnerDeps) {}
 
   async runCompanion(p: CompanionProfile, o: RunOptions): Promise<NodeResult> {
-    const res = this.start(o.nodeName ?? '(unnamed)', 'companion')
+    const res = this.start(o.nodeName ?? '(unnamed)', p.kind)
     let link: FrameLink | null = null
     try {
       link = await this.step(res, 'connect', async () => {
@@ -159,7 +159,7 @@ export class NodeRunner {
 
   // ---- helpers ----
 
-  private start(name: string, kind: 'companion' | 'tracker'): NodeResult {
+  private start(name: string, kind: NodeResult['kind']): NodeResult {
     return { name, kind, startedAt: this.d.clock.now().toISOString(), steps: [], ok: false }
   }
 

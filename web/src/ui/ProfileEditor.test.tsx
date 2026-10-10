@@ -227,3 +227,17 @@ describe('randomHex', () => {
     expect(randomHex(16)).not.toBe(randomHex(16))
   })
 })
+
+describe('ProfileEditor gateway', () => {
+  it('shows the DHCP reminder, hides the BLE PIN and builds a gateway profile', async () => {
+    setup()
+    await userEvent.selectOptions(screen.getByLabelText('Node type'), 'gateway')
+    expect(screen.getByText(/Reserve it by MAC address/)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/BLE PIN/)).not.toBeInTheDocument()
+    expect(screen.getByText('Profile is valid.')).toBeInTheDocument()
+    expect(json()).toMatchObject({
+      kind: 'gateway',
+      firmware_variant: 'RAK_4631_companion_radio_usb_ethernet',
+    })
+  })
+})

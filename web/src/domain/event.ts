@@ -330,6 +330,13 @@ const base = (ev: EventFile) => ({
   ...(ev.ble_pin !== undefined ? { ble_pin: ev.ble_pin } : {}),
 })
 
+/** A gateway has no BLE, so it takes everything a station radio does except the PIN. */
+const gatewayBase = (ev: EventFile) => {
+  const { ble_pin: _pin, ...rest } = base(ev)
+  void _pin
+  return rest
+}
+
 /** A station radio: the four channels in index order, a name like `AS3-{n}`, a fresh identity, wiped first. */
 export function stationCompanionProfile(ev: EventFile, st: EventStation): CompanionProfile {
   return check({
@@ -344,9 +351,9 @@ export function stationCompanionProfile(ev: EventFile, st: EventStation): Compan
 /** The station's Ethernet gateway: same four channels, one device per station so no counter in its name. */
 export function stationGatewayProfile(ev: EventFile, st: EventStation): CompanionProfile {
   return check({
-    kind: 'companion',
+    kind: 'gateway',
     firmware_variant: GATEWAY_ENV,
-    ...base(ev),
+    ...gatewayBase(ev),
     channels: toProfileChannels(stationChannels(ev, st)),
     advert: { name_template: `${st.id}-GW` },
   })
