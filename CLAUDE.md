@@ -8,7 +8,7 @@ Chrome web app that flashes and configures batches of MeshCore companion nodes b
 - Env: `FLEET_ADDR` (default `:8080`), `FLEET_FIRMWARE_DIR` (manifest.json + zips, served read-only under `/firmware/`; unset disables), `LOG_LEVEL`. slog JSON to stderr.
 - Serves `/` (embedded app, `assets/` immutable-cached), `/firmware/` (no directory listings, no-store), `/healthz`. Every response carries a CSP (`default-src 'self'`), nosniff, no-referrer and `Permissions-Policy: serial=(self)`. Keep the CSP tight: the app must never load or call anything off-origin.
 - Bind to localhost on the event laptop (Web Serial needs a secure origin; `http://localhost` qualifies). The compose file publishes on 127.0.0.1 only.
-- Image bakes in `./firmware` at build time; a volume at `/firmware` overrides it.
+- The image contains no firmware (decided 2026-10-10: the firmware is a separate release, and a baked copy would carry whatever happened to be in `./firmware` at build time). It has an empty `/firmware`; mount the release directory there. `firmware/.release` (written by the go-box's `make firmware`) holds the release tag; the app reads it through `/firmware/.release` and shows it, warning when the loaded event expects another release.
 - `go test` must be run on explicit packages (`make test`), not `./...`: `web/node_modules` contains Go files.
 
 ## Architecture (hexagonal, frontend mirror)

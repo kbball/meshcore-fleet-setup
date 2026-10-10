@@ -49,12 +49,9 @@ For 7 stations that is 16 channels in all (1 + 7 + 7 + 1). A station radio and i
 
 **Build order.** (1) hardware-verify the existing flashing flows (item 1 above); (2) event file domain code (done); (3) gateway device kind (done in this repo; the fork's `.github/ares-firmware.json` still lists the gateway env as `companion`, change it to `gateway` once this is merged, because the Go server of an older image rejects an unknown kind); (4) the go-box side (constant channel settings, docs) in `aredn-go-box`.
 
-## Code work still to do (after hardware verification of the existing flows)
-- Decide whether the image should keep baking in `./firmware` (it bakes in whatever is there at build time, which the published image has none of) or only mount it.
-- Show the installed firmware release (the go-box writes `firmware/.release`) in the UI so the operator can see which version is loaded.
-
 ## Decisions
 
+- The image contains no firmware, only an empty `/firmware` mount point (2026-10-10). The firmware is a separate release, and a baked copy would carry whatever was in `./firmware` at build time. The UI shows the installed release (`firmware/.release`).
 - Firmware is served by the same Go server as the app (same origin, no CORS) from a directory. It comes from a GitHub Release of the firmware fork (tag `ares-vX.Y.Z`; tarball with `manifest.json` + `<version>/<env>.zip`), extracted into `./firmware` and mounted at `/firmware`; the go-box's `make firmware` fetches and verifies it. The published image contains no firmware.
 - A small Go server rather than static hosting: security headers, healthcheck, startup firmware verification, one container. No state, no database.
 - Backups are opt-in per node, always passphrase-encrypted (PBKDF2-SHA256 600k + AES-GCM), delivered by download plus a prefilled `mailto:` (browsers cannot attach files).

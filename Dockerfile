@@ -24,14 +24,12 @@ ARG TARGETOS
 ARG TARGETARCH
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/fleetsetup ./cmd/fleetsetup
-# The image has no shell, so the firmware directory is made here and handed to the non-root user.
+# The image has no shell, so the (empty) firmware mount point is made here and handed to the non-root user.
 RUN mkdir -p /out/firmware
-COPY firmware/ /out/firmware/
-RUN rm -f /out/firmware/.gitkeep
 
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/fleetsetup /fleetsetup
-# Firmware baked in at build time (whatever is in ./firmware); mount a volume at /firmware to replace it.
+# No firmware inside the image: it is a separate release (see the go-box's `make firmware`), mounted at /firmware.
 COPY --from=build --chown=nonroot:nonroot /out/firmware /firmware
 ENV FLEET_ADDR=:8080 FLEET_FIRMWARE_DIR=/firmware
 EXPOSE 8080

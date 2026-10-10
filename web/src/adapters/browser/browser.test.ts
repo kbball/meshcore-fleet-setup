@@ -1,6 +1,6 @@
 import { zipSync, strToU8 } from 'fflate'
 import { DownloadSink, mailtoUrl } from './download'
-import { HttpFirmwareSource, sha256Hex, unpackDfuZip } from './firmwareSource'
+import { HttpFirmwareInfo, HttpFirmwareSource, sha256Hex, unpackDfuZip } from './firmwareSource'
 import { RingLogger } from './logger'
 import { LocalBatchStore } from './resultsStore'
 
@@ -140,5 +140,30 @@ describe('LocalBatchStore', () => {
     const store = new LocalBatchStore(throwing)
     expect(store.load().counter).toBe(1)
     expect(() => store.save({ counter: 2, results: [] })).not.toThrow()
+  })
+})
+
+describe('HttpFirmwareInfo', () => {
+  const manifest = JSON.stringify({
+    entries: [
+      { board: 'b', env: 'e', kind: 'gateway', version: 'v1.0.0-abc1234', file: 'f', sha256: 'a'.repeat(64) },
+    ],
+  })
+  const info = (files: Record<string, string>) =>
+    new HttpFirmwareInfo('http://x.test/firmware/manifest.json', (async (url: string) => {
+      const name = String(url).replace('http://x.test/firmware/', '')
+      return name in files ? new Response(files[name]) : new Response('no', { status: 404 })
+    }) as typeof fetch)
+
+  it('reads the manifest and the .release file next to it', async () => {
+    const r = await info({ 'manifest.json': manifest, '.release': 'ares-v1.0.0\n' }).installed()
+    expect(r).toEqual({ release: 'ares-v1.0.0', versions: ['v1.0.0-abc1234'], envs: ['e'] })
+  })
+  it('copes with either being missing', async () => {
+    expect((await info({ 'manifest.json': manifest }).installed()).release).toBeNull()
+    expect(await info({}).installed()).toEqual({ release: null, versions: [], envs: [] })
+  })
+  it('ignores a .release that is not a tag', async () => {
+    expect((await info({ 'manifest.json': manifest, '.release': '<script>' }).installed()).release).toBeNull()
   })
 })

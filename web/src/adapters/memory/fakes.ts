@@ -1,5 +1,6 @@
 import type { NodeBackup } from '../../domain/backup'
 import { crc16, type DfuPackage } from '../../domain/dfu'
+import type { InstalledFirmware } from '../../domain/firmwareRelease'
 import type { ManifestEntry } from '../../domain/manifest'
 import type {
   BackupCipher,
@@ -8,6 +9,7 @@ import type {
   BatchStore,
   Clock,
   DfuLink,
+  FirmwareInfoSource,
   FirmwareSource,
   FrameLink,
   LineLink,
@@ -75,6 +77,15 @@ export class MemoryFirmware implements FirmwareSource {
       },
       pkg: this.pkg,
     }
+  }
+}
+
+export class MemoryFirmwareInfo implements FirmwareInfoSource {
+  constructor(
+    public info: InstalledFirmware = { release: 'ares-v1.0.0', versions: ['v1.0.0-abc1234'], envs: ['e'] },
+  ) {}
+  async installed(): Promise<InstalledFirmware> {
+    return this.info
   }
 }
 

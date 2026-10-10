@@ -41,7 +41,7 @@ fmt:
 	gofmt -w cmd internal web/embed.go
 	cd web && npm run format
 
-image: ## build the Docker image, tagged with VERSION and latest (bakes in ./firmware)
+image: ## build the Docker image, tagged with VERSION and latest (no firmware inside; mount it)
 	docker build --build-arg VERSION=$(VERSION) -t $(IMAGE):$(VERSION) -t $(IMAGE):latest .
 
 smoke: image ## run the image and push real requests through it (the check CI runs)
