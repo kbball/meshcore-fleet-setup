@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { downloadText } from '../adapters/browser/download'
 import { createEventFile, type EventFile } from '../domain/event'
-import type { Profile } from '../domain/profile'
+import { parseProfile, type Profile } from '../domain/profile'
 import { EventPanel, parseStationLines } from './EventPanel'
 
 vi.mock('../adapters/browser/download', () => ({ downloadText: vi.fn() }))
@@ -118,6 +118,20 @@ describe('with an event', () => {
     expect(name).toBe('station-AS1.json')
     expect(text).toContain(ev.stations[0].log_secret)
     expect(text).not.toContain(ev.stations[1].log_secret)
+    // The bundle is a wrapper for handing a station its files, not a profile: the importers say so.
+    expect(() => parseProfile(text)).toThrow(/station bundle, not a profile/)
+
+    // The per-station profile downloads are real profile files that the importers (profile builder, batch) accept.
+    await userEvent.click(screen.getByRole('button', { name: 'Download radio profile for AS1' }))
+    let [pname, ptext] = vi.mocked(downloadText).mock.lastCall!
+    expect(pname).toBe('station-AS1-radio.json')
+    expect(parseProfile(ptext).kind).toBe('companion')
+    expect(ptext).toContain(ev.stations[0].log_secret)
+    expect(ptext).not.toContain(ev.stations[1].log_secret)
+    await userEvent.click(screen.getByRole('button', { name: 'Download gateway profile for AS1' }))
+    ;[pname, ptext] = vi.mocked(downloadText).mock.lastCall!
+    expect(pname).toBe('station-AS1-gateway.json')
+    expect(parseProfile(ptext).kind).toBe('gateway')
 
     await userEvent.click(screen.getByRole('button', { name: 'Download tracker profile' }))
     expect(vi.mocked(downloadText).mock.lastCall![0]).toBe('tracker-profile.json')

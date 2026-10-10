@@ -105,6 +105,9 @@ describe('parsing', () => {
     expect(parseProfile(JSON.stringify(companion)).kind).toBe('companion')
     expect(() => parseProfile('{nope')).toThrow(/not valid JSON/)
     expect(() => parseProfile('{"kind":"tracker"}')).toThrow(/invalid profile/)
+    expect(() => parseProfile('{"format":"meshcore-station-bundle","version":1}')).toThrow(
+      /station bundle, not a profile/,
+    )
   })
   it('channel secrets: hex, base64 and public', () => {
     expect(parseChannelSecret(hex16)).toHaveLength(16)
