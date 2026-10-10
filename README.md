@@ -26,9 +26,22 @@ or `make image && docker run -p 127.0.0.1:8080:8080 ghcr.io/kbball/meshcore-flee
 
 Server settings are environment variables (`.env.example`): `FLEET_ADDR`, `FLEET_FIRMWARE_DIR`, `LOG_LEVEL`. At startup it checks every firmware file against `manifest.json` and logs any that is missing or does not match.
 
+## The image has no firmware
+
+The published image (`ghcr.io/kbball/meshcore-fleet-setup`) bakes in whatever was in `./firmware` when it was built, and the repository's `firmware/` holds nothing but a `.gitkeep`. So the published image has **no firmware**: the app loads, logs `firmware manifest … no such file or directory`, and cannot flash. Mount a directory containing `manifest.json` and the zips at `/firmware` (the compose file above does this with `./firmware`), or build the image yourself with a populated `./firmware`.
+
 ## Getting firmware
 
 The firmware fork publishes `manifest.json` plus `<version>/<env>.zip` (see `docs/fork/publish-firmware.yml`). Put them in `./firmware`. `scripts/build-firmware-manifest.mjs` builds the manifest from local zips.
+
+## Secure context and the field server
+
+Web Serial only works on `http://localhost` or over HTTPS. Running it on your own laptop is fine as is (the compose file binds it to `127.0.0.1` only). To use it from other laptops on a field server, serve it over HTTPS: the [aredn-go-box](https://github.com/kbball/aredn-go-box) `fleet-mgmt` stack does this at `https://<host>/fleet/` behind a Caddy proxy with its own certificate (each laptop trusts that certificate once). Asset URLs are relative, so the app works under a path like `/fleet/`. The `fleet-mgmt` stack there mounts its own `firmware/` folder and will not deploy until it has a `manifest.json`.
+
+## How it fits with the other event tools
+
+- **Sweep trackers** configured here report to [sweep-tracker](https://github.com/kbball/sweep-tracker); the tracker name you set here is the name you give the team under *Admin → Sweep teams* there.
+- **Channels:** the channels in your profile are what the radios, the MeshCore node on the field server and the [bib logger](https://github.com/kbball/ares-bib-logger) share. The bib logger listens on the channel index set by `MESHCORE_CHANNEL_INDEX`, so keep it in step with the profile.
 
 ## No Docker on the laptop
 
