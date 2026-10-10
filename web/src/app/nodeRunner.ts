@@ -59,7 +59,7 @@ export type RunnerDeps = {
 }
 
 const REOPEN_TIMEOUT_MS = 30_000
-/** Format the filesystem, the firmware's own 1 s pause, then the reboot. Not measured on hardware yet. */
+/** Format the filesystem, the firmware's own 1 s pause, then the reboot. 8 s was enough on a T-1000-E. */
 export const WIPE_REBOOT_MS = 8_000
 
 class StopRun extends Error {}
