@@ -32,7 +32,7 @@ The published image (`ghcr.io/kbball/meshcore-fleet-setup`) bakes in whatever wa
 
 ## Getting firmware
 
-The firmware fork publishes `manifest.json` plus `<version>/<env>.zip` (see `docs/fork/publish-firmware.yml`). Put them in `./firmware`. `scripts/build-firmware-manifest.mjs` builds the manifest from local zips.
+Firmware comes from a GitHub Release of the firmware fork, [kbball/MeshCore-tracker](https://github.com/kbball/MeshCore-tracker/releases). Pushing a tag like `ares-v1.0.0` there builds every board the team uses and publishes `ares-firmware-<version>.tar.gz`: `manifest.json` plus `<version>/<env>.zip`, ready to extract into `./firmware`. On the go-box, `make firmware` does the download and sha256 check for you (set `FIRMWARE_TAG` in its `.env`). `scripts/build-firmware-manifest.mjs` (used by the fork's workflow) builds the manifest from local zips if you want to assemble a folder by hand.
 
 ## Secure context and the field server
 

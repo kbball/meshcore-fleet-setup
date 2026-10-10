@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+### Changed
+- Firmware is distributed as a GitHub Release of the firmware fork (built when an `ares-vX.Y.Z` tag is pushed) instead of an orphan `firmware` branch of this repository. Documentation updated; `scripts/build-firmware-manifest.mjs` is now run by the fork's workflow, so its command line is kept stable.
+
+### Removed
+- `docs/fork/publish-firmware.yml`, the draft workflow that pushed firmware to a branch of this repo with an access token. The fork has its own workflow now.
+
 ### Added
 - GPS setting for companion profiles (`gps: { enabled, interval_sec? }`) and in the profile builder: written with the node's `gps` / `gps_interval` settings, verified by read-back, captured in backups. Fails clearly on a node without a GPS.
 - Profile builder: a form for building and editing companion and tracker profile files (validated live, keys generated in the browser and masked in the preview, download or use directly for the batch).

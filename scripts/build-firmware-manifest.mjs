@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 // Adds firmware zips to a firmware directory and rewrites manifest.json (see src/domain/manifest.ts).
+// The firmware fork (kbball/MeshCore-tracker) runs this from its ares-firmware workflow, checked out from
+// this repo's main: keep the command line below stable.
 //
 //   node scripts/build-firmware-manifest.mjs --dir out/firmware --version v1.12.0-abc1234 --keep 5 \
 //     --entry "Xiao_nrf52_companion_radio_usb_ble|Seeed XIAO nRF52840|companion|path/to/firmware.zip" ...

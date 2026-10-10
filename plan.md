@@ -7,11 +7,10 @@ Everything below needs hardware or an external action; the code for the original
    - Provision the T-1000-E tracker from the app (the tracker CLI path is the best understood).
    - Companion configure + verify, backup, wipe, restore on one spare board.
    - Browser DFU on each board type (1200 baud touch, bootloader port discovery, re-enumeration).
-2. **Fork**: create one release branch containing both `companion-usb-ble` and `gps-tracker`; copy `docs/fork/publish-firmware.yml` to the fork's workflows; add the `FLEET_SETUP_TOKEN` secret.
+2. **Fork** (`kbball/MeshCore-tracker`): its PR #1 merges `companion-usb-ble` and `gps-tracker` and adds the `ares-v*` release workflow. After it merges: run the workflow by hand once (dry run), then push `ares-v1.0.0`, and check the release has the tarball, `manifest.json` and six zips. No access token is needed any more.
 3. **This repo on GitHub**: protect `main` with the `Go`, `Frontend` and `Image` checks; confirm the first CI run (action versions copied from sweep-tracker).
 4. Verify against the protocol where the code assumed:
-   - Flood scope key: the profile takes an explicit 16-byte key; check how the official app derives it from a region name and add that.
-   - Hashtag channels (`#name`): the profile takes explicit secrets only; add derivation if wanted.
+   - Flood scope key (deferred until MeshCore repeaters exist): the profile takes an explicit 16-byte key; check how the official app derives it from a region name and add that then.
    - Whether contacts can be read/restored over the protocol (backups do not include them).
    - Restore does not reflash the firmware version recorded in the backup.
 5. Try the image (or `make bundle`) on the actual event laptop OS; before the event pull or `docker save` the image.
@@ -42,7 +41,7 @@ For 7 stations that is 16 channels in all (1 + 7 + 7 + 1). A station radio and i
 
 **Derived output.** Per station: companion profile(s); a gateway profile; and the go-box settings (`MESHCORE_ADDRESS`, channel indexes, which are constants). Plus tracker profiles and an optional all-channels profile.
 
-**New device kind: gateway.** RAK4631 with the RAK13800 Ethernet module, firmware env `RAK_4631_companion_radio_ethernet` (exists in the fork: TCP port 5000, DHCP by default so reserve an address by its MAC on the AREDN node, 40 channel slots, PoE-capable). It is not in the fork's publish workflow yet. The meshcore-mqtt bridge on the station's go-box connects to it over TCP.
+**New device kind: gateway.** RAK4631 with the RAK13800 Ethernet module, firmware env `RAK_4631_companion_radio_usb_ethernet` (in the fork: the stock `_ethernet` build plus a USB interface, because the stock one has neither USB nor BLE and so could not be configured from this tool; TCP port 5000, DHCP by default so reserve an address by its MAC on the AREDN node, 40 channel slots, PoE-capable). The fork's release builds it. The meshcore-mqtt bridge on the station's go-box connects to it over TCP. The manifest currently lists it as kind `companion`; a `gateway` kind is part of the work below.
 
 **Scope (deferred).** The companion firmware keeps one default flood scope per device (`TODO: have per-channel send_scope` in the fork); the phone app (v1.47+) sets a per-channel `region_scope` when sending. Keep `scope` as an optional field per channel. Do not build per-channel firmware scope or repeater region profiles until MeshCore repeaters exist; then a standalone radio that must send both narrow (station) and wide (all-race) traffic needs that firmware change.
 
@@ -50,9 +49,15 @@ For 7 stations that is 16 channels in all (1 + 7 + 7 + 1). A station radio and i
 
 **Build order.** (1) hardware-verify the existing flashing flows (item 1 above); (2) event file schema, key generation and per-station/tracker/gateway derivation as pure domain code with tests; (3) gateway device kind and adding its env to the publish workflow; (4) the go-box side (constant channel settings, docs) in `aredn-go-box`.
 
+## Code work still to do (after hardware verification of the existing flows)
+- Event file: schema, random key generation, per-station / tracker / gateway / net-control derivation, export of the go-box settings. Pure domain code with tests (no hardware needed). Include the firmware release tag the event uses.
+- `gateway` device kind: manifest `kind`, profile `kind`, builder UI; picks `RAK_4631_companion_radio_usb_ethernet` and shows the DHCP/MAC reminder.
+- Decide whether the image should keep baking in `./firmware` (it bakes in whatever is there at build time, which the published image has none of) or only mount it.
+- Show the installed firmware release (the go-box writes `firmware/.release`) in the UI so the operator can see which version is loaded.
+
 ## Decisions
 
-- Firmware is served by the same Go server as the app (same origin, no CORS) from a directory. The fork pushes an orphan `firmware` branch (`manifest.json` + newest 5 versions); clone it into `./firmware` to bake into the image or mount.
+- Firmware is served by the same Go server as the app (same origin, no CORS) from a directory. It comes from a GitHub Release of the firmware fork (tag `ares-vX.Y.Z`; tarball with `manifest.json` + `<version>/<env>.zip`), extracted into `./firmware` and mounted at `/firmware`; the go-box's `make firmware` fetches and verifies it. The published image contains no firmware.
 - A small Go server rather than static hosting: security headers, healthcheck, startup firmware verification, one container. No state, no database.
 - Backups are opt-in per node, always passphrase-encrypted (PBKDF2-SHA256 600k + AES-GCM), delivered by download plus a prefilled `mailto:` (browsers cannot attach files).
 - Trackers have no wipe or backup; flash + provision is the clean state.
