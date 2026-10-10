@@ -1,0 +1,52 @@
+# Publishes the app and the firmware to GitHub Pages (same origin, so no CORS for the firmware files).
+# Firmware lives on the orphan `firmware` branch (manifest.json + <version>/<env>.zip), pushed by the
+# firmware fork's publish workflow (docs/fork/publish-firmware.yml), which then triggers this workflow.
+name: Deploy
+on:
+  push:
+    branches: [main]
+  repository_dispatch:
+    types: [firmware-updated]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_MANIFEST_URL: ./firmware/manifest.json
+      - name: Add firmware from the firmware branch (if it exists)
+        run: |
+          if git ls-remote --exit-code --heads origin firmware >/dev/null; then
+            git clone --depth 1 --branch firmware "https://github.com/${{ github.repository }}.git" /tmp/firmware
+            rm -rf /tmp/firmware/.git
+            mkdir -p dist/firmware
+            cp -R /tmp/firmware/. dist/firmware/
+          else
+            echo "no firmware branch yet; deploying the app only"
+          fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
