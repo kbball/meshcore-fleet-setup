@@ -51,7 +51,7 @@ Dependency direction is always inward: `adapters -> app -> domain`.
 
 ## Targets
 
-Seeed T-1000-E, Seeed XIAO nRF52840 + Wio-SX1262, RAK4631. All nRF52840.
+Seeed T-1000-E, Seeed XIAO nRF52840 + Wio-SX1262, RAK4631. All nRF52840. Plus the station gateway: RAK4631 + RAK13800 Ethernet (`RAK_4631_companion_radio_usb_ethernet`), device kind `gateway` (companion protocol over USB, TCP port 5000 in service, DHCP address to reserve by MAC, no BLE so no PIN).
 
 ## Firmware (fork kbball/MeshCore-tracker, upstream meshcore-dev/MeshCore)
 
@@ -97,7 +97,7 @@ A second device kind: the GPS tracker firmware on fork branch `gps-tracker` (`ex
 
 ## Profile format
 
-One shareable JSON file with a `kind` of `companion` (below) or `tracker` (see the sweep tracker section). A companion profile: `radio` (freq, bw, sf, cr, tx power), `channels` (ordered `{name, secret}`), `advert` (name template like `AS3-{n}`, lat/lon, flood scope), `identity` (generate per node or import), `ble_pin`, `gps` (`{enabled, interval_sec?}`, companion only; set through the node's `gps` / `gps_interval` custom variables, which exist only on a board with a detected GPS such as the T-1000-E; firmware default is off and a wipe turns it off), `wipe_first` (bool), `firmware_variant`. With `wipe_first: false`, write only the listed fields. Wiping is optional per profile.
+One shareable JSON file with a `kind` of `companion` (below), `gateway` (a companion profile minus `ble_pin`) or `tracker` (see the sweep tracker section). A companion profile: `radio` (freq, bw, sf, cr, tx power), `channels` (ordered `{name, secret}`), `advert` (name template like `AS3-{n}`, lat/lon, flood scope), `identity` (generate per node or import), `ble_pin`, `gps` (`{enabled, interval_sec?}`, companion only; set through the node's `gps` / `gps_interval` custom variables, which exist only on a board with a detected GPS such as the T-1000-E; firmware default is off and a wipe turns it off), `wipe_first` (bool), `firmware_variant`. With `wipe_first: false`, write only the listed fields. Wiping is optional per profile.
 
 ## Secrets
 

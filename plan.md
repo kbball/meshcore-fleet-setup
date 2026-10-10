@@ -7,7 +7,7 @@ Everything below needs hardware or an external action; the code for the original
    - Provision the T-1000-E tracker from the app (the tracker CLI path is the best understood).
    - Companion configure + verify, backup, wipe, restore on one spare board.
    - Browser DFU on each board type (1200 baud touch, bootloader port discovery, re-enumeration).
-2. **Fork** (`kbball/MeshCore-tracker`): its PR #1 merges `companion-usb-ble` and `gps-tracker` and adds the `ares-v*` release workflow. After it merges: run the workflow by hand once (dry run), then push `ares-v1.0.0`, and check the release has the tarball, `manifest.json` and six zips. No access token is needed any more.
+2. **Fork** (`kbball/MeshCore-tracker`): its PR #1 merges `companion-usb-ble` and `gps-tracker` and adds the `ares-v*` release workflow. After it merges: run the workflow by hand once (dry run), then push `ares-v1.0.0`, and check the release has the tarball, `manifest.json` and six zips. After this repo's `gateway` kind is merged and released, set `"kind": "gateway"` for the ethernet env in `.github/ares-firmware.json`. No access token is needed any more.
 3. **This repo on GitHub**: protect `main` with the `Go`, `Frontend` and `Image` checks; confirm the first CI run (action versions copied from sweep-tracker).
 4. Verify against the protocol where the code assumed:
    - Flood scope key (deferred until MeshCore repeaters exist): the profile takes an explicit 16-byte key; check how the official app derives it from a region name and add that then.
@@ -47,10 +47,9 @@ For 7 stations that is 16 channels in all (1 + 7 + 7 + 1). A station radio and i
 
 **Open questions.** Which gateways can actually hear the sweep trackers (no repeaters: direct range only, so antenna placement). Whether the bridge needs per-channel handling beyond filtering on `channel_idx`.
 
-**Build order.** (1) hardware-verify the existing flashing flows (item 1 above); (2) event file domain code (done); (3) gateway device kind and adding its env to the publish workflow; (4) the go-box side (constant channel settings, docs) in `aredn-go-box`.
+**Build order.** (1) hardware-verify the existing flashing flows (item 1 above); (2) event file domain code (done); (3) gateway device kind (done in this repo; the fork's `.github/ares-firmware.json` still lists the gateway env as `companion`, change it to `gateway` once this is merged, because the Go server of an older image rejects an unknown kind); (4) the go-box side (constant channel settings, docs) in `aredn-go-box`.
 
 ## Code work still to do (after hardware verification of the existing flows)
-- `gateway` device kind: manifest `kind`, profile `kind`, builder UI; picks `RAK_4631_companion_radio_usb_ethernet` and shows the DHCP/MAC reminder.
 - Decide whether the image should keep baking in `./firmware` (it bakes in whatever is there at build time, which the published image has none of) or only mount it.
 - Show the installed firmware release (the go-box writes `firmware/.release`) in the UI so the operator can see which version is loaded.
 

@@ -25,6 +25,12 @@ describe('manifest', () => {
     const m = parseManifest({ entries: [e('x', 'v1.2.0-abc'), e('x', 'v1.2.0-abd'), e('x', 'v1.1.9')] })
     expect(findFirmware(m, 'x')?.version).toBe('v1.2.0-abd')
   })
+  it('accepts the gateway kind', () => {
+    const m = parseManifest({
+      entries: [{ ...e('RAK_4631_companion_radio_usb_ethernet', 'v1'), kind: 'gateway' }],
+    })
+    expect(m.entries[0].kind).toBe('gateway')
+  })
   it('rejects malformed manifests', () => {
     expect(() => parseManifest({})).toThrow(/entries/)
     expect(() => parseManifest({ entries: [{ ...e('x', '1'), file: '' }] })).toThrow(/file/)

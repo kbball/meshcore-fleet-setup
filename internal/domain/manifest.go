@@ -49,8 +49,8 @@ func (e Entry) validate() error {
 			return fmt.Errorf("missing %q", name)
 		}
 	}
-	if e.Kind != "companion" && e.Kind != "tracker" {
-		return fmt.Errorf("kind must be companion or tracker, got %q", e.Kind)
+	if e.Kind != "companion" && e.Kind != "tracker" && e.Kind != "gateway" {
+		return fmt.Errorf("kind must be companion, gateway or tracker, got %q", e.Kind)
 	}
 	if b, err := hex.DecodeString(e.SHA256); err != nil || len(b) != sha256.Size {
 		return errors.New("sha256 must be 64 hex characters")

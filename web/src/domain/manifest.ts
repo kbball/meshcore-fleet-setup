@@ -1,7 +1,7 @@
 export type ManifestEntry = {
   board: string
   env: string
-  kind: 'companion' | 'tracker'
+  kind: 'companion' | 'gateway' | 'tracker'
   version: string
   file: string // path relative to the manifest
   sha256: string
@@ -15,7 +15,8 @@ export function parseManifest(json: unknown): Manifest {
     for (const k of ['board', 'env', 'kind', 'version', 'file', 'sha256']) {
       if (typeof e?.[k] !== 'string' || !e[k]) throw new Error(`manifest entry ${i} is missing '${k}'`)
     }
-    if (e.kind !== 'companion' && e.kind !== 'tracker') throw new Error(`manifest entry ${i} has bad kind`)
+    if (e.kind !== 'companion' && e.kind !== 'gateway' && e.kind !== 'tracker')
+      throw new Error(`manifest entry ${i} has bad kind`)
     if (!/^[0-9a-f]{64}$/i.test(e.sha256)) throw new Error(`manifest entry ${i} has a bad sha256`)
   }
   return { entries: entries as ManifestEntry[] }

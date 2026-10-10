@@ -3,8 +3,12 @@ import { validateTrackerConfig, type TrackerConfig } from './tracker'
 
 export const PUBLIC_CHANNEL_PSK = 'izOH6cXN6mrJ5e26oRXNcg=='
 
+/**
+ * A node that speaks the companion protocol. `gateway` is the RAK4631 + Ethernet build: same protocol and
+ * settings, but no BLE, so it takes no `ble_pin`.
+ */
 export type CompanionProfile = {
-  kind: 'companion'
+  kind: 'companion' | 'gateway'
   firmware_variant: string
   wipe_first: boolean
   radio?: { freq: number; bw: number; sf: number; cr: number; tx_power?: number }
@@ -81,11 +85,12 @@ export function validateProfile(p: unknown): string[] {
   if (typeof p !== 'object' || p === null || Array.isArray(p)) return ['profile must be a JSON object']
   const o = p as Record<string, unknown>
   const problems: string[] = []
-  if (o.kind !== 'companion' && o.kind !== 'tracker') return ["kind must be 'companion' or 'tracker'"]
+  if (o.kind !== 'companion' && o.kind !== 'gateway' && o.kind !== 'tracker')
+    return ["kind must be 'companion', 'gateway' or 'tracker'"]
   if (typeof o.firmware_variant !== 'string' || !o.firmware_variant)
     problems.push('firmware_variant is required')
 
-  const allowed = o.kind === 'companion' ? COMPANION_KEYS : TRACKER_KEYS
+  const allowed = o.kind === 'tracker' ? TRACKER_KEYS : COMPANION_KEYS
   for (const k of Object.keys(o)) if (!allowed.includes(k)) problems.push(`unknown key '${k}'`)
 
   if (o.kind === 'tracker') {
@@ -157,7 +162,9 @@ export function validateProfile(p: unknown): string[] {
       }
     } else if (i.mode !== 'generate') problems.push("identity.mode must be 'generate' or 'import'")
   }
-  if (
+  if (o.kind === 'gateway' && o.ble_pin !== undefined)
+    problems.push('a gateway has no BLE, so ble_pin does not apply')
+  else if (
     o.ble_pin !== undefined &&
     !(
       o.ble_pin === 0 ||

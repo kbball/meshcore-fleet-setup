@@ -143,7 +143,7 @@ function BatchPanel({
     try {
       const res = await batch.runNext(profile, {
         flash,
-        backup: backup && profile.kind === 'companion' ? { passphrase } : undefined,
+        backup: backup && profile.kind !== 'tracker' ? { passphrase } : undefined,
       })
       setLast(res)
       if (res.backupFile && email) window.open(mailtoUrl(email, res.name, res.backupFile))
@@ -163,7 +163,7 @@ function BatchPanel({
       return `(${(e as Error).message})`
     }
   })()
-  const canBackup = profile?.kind === 'companion'
+  const canBackup = profile !== null && profile.kind !== 'tracker'
   const blocked = busy || !profile || (backup && canBackup && passphrase === '')
 
   return (
@@ -190,7 +190,7 @@ function BatchPanel({
             <span>
               firmware <code>{profile.firmware_variant}</code>
             </span>
-            {profile.kind === 'companion' &&
+            {profile.kind !== 'tracker' &&
               (profile.wipe_first ? (
                 <span className="chip warn">wipes each node first</span>
               ) : (

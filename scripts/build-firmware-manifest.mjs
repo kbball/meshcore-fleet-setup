@@ -48,7 +48,7 @@ entries = entries.filter((e) => e.version !== version);
 
 for (const spec of values.entry) {
   const [env, board, kind, src] = spec.split("|");
-  if (!env || !board || !["companion", "tracker"].includes(kind) || !src)
+  if (!env || !board || !["companion", "gateway", "tracker"].includes(kind) || !src)
     throw new Error(`bad --entry: ${spec}`);
   const file = `${version}/${env}.zip`;
   copyFileSync(src, join(dir, file));
