@@ -181,3 +181,19 @@ describe('App tabs', () => {
     expect(screen.getByRole('button', { name: /run next node/i })).toBeInTheDocument()
   })
 })
+
+describe('App event tab', () => {
+  it('creates an event, keeps it across tabs and hands a station profile to the batch', async () => {
+    render(<App version="1" factory={fakeFactory().factory} />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Event' }))
+    await userEvent.type(screen.getByLabelText('Event name'), 'ARES 100')
+    await userEvent.click(screen.getByRole('button', { name: 'Generate keys and create' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Run a batch' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Event' }))
+    expect(screen.getByText('ARES 100')).toBeInTheDocument() // survived the tab switch
+
+    await userEvent.click(screen.getByRole('button', { name: 'Use gateway profile for AS1' }))
+    expect(screen.getByText('gateway')).toBeInTheDocument()
+    expect(screen.getByText(/RAK_4631_companion_radio_usb_ethernet/)).toBeInTheDocument()
+  })
+})

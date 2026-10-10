@@ -6,6 +6,8 @@ Chrome web app that flashes and configures batches of MeshCore nodes over Web Se
 - **Gateways** (RAK4631 + Ethernet, the station's link to the go-box): configured like a companion, without a BLE PIN. Its address comes from DHCP: reserve it by MAC on the AREDN node.
 - **Sweep trackers** (GPS tracker firmware, configured through its text CLI).
 
+The **Event** tab builds one event file (channel secrets, stations, trackers, firmware release) and derives every device's profile and the go-box settings from it, so station radios, gateways, trackers and the apps always agree on channel indexes and keys.
+
 Design notes and rules are in `CLAUDE.md`; remaining work in `plan.md`.
 
 ## Use
