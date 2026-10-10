@@ -11,6 +11,7 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 - `docs/fork/publish-firmware.yml`, the draft workflow that pushed firmware to a branch of this repo with an access token. The fork has its own workflow now.
 
 ### Added
+- Event file (domain only so far): one JSON file per event holding the firmware release tag, radio settings, the event-wide sweeps and all-race secrets and a per-station log and chat secret (random 16-byte keys, never derived from names). Derives each station's radio and gateway profile (fixed channel layout 0 sweeps, 1 aid station logging, 2 station chat, 3 all-race), tracker profiles with unique `Sweep{n}` names and the sweeps channel only, an all-channels net-control profile, and the go-box settings (`MESHCORE_ADDRESS`, channel indexes). Per-station bundles carry only that station's channels. Example in `profiles/event.example.json`.
 - GPS setting for companion profiles (`gps: { enabled, interval_sec? }`) and in the profile builder: written with the node's `gps` / `gps_interval` settings, verified by read-back, captured in backups. Fails clearly on a node without a GPS.
 - Profile builder: a form for building and editing companion and tracker profile files (validated live, keys generated in the browser and masked in the preview, download or use directly for the batch).
 
