@@ -14,6 +14,7 @@ Everything below needs hardware or an external action; the code for the original
    - Whether contacts can be read/restored over the protocol (backups do not include them).
    - Restore does not reflash the firmware version recorded in the backup.
 5. Try the image (or `make bundle`) on the actual event laptop OS; before the event pull or `docker save` the image.
+6. **Owner-email draft wording** (found in hardware validation, 2026-10-10): the `mailto:` draft says the backup "is attached", but browsers cannot attach files, so the sender has to attach the downloaded file by hand. Reword the body (`mailtoUrl` in `web/src/adapters/browser/download.ts`) to say to attach the file first, and keep the passphrase out of the email. It opens the mail client correctly.
 
 ## Event profile (design, not built)
 
