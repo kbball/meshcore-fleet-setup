@@ -1,5 +1,5 @@
 # Run the app on the event laptop:  docker compose up
-# Firmware (manifest.json + <version>/<env>.zip) is read from ./firmware, mounted read-only over the baked-in copy.
+# Firmware (manifest.json + <version>/<env>.zip) is read from ./firmware, mounted read-only. The image contains no firmware.
 services:
   fleetsetup:
     image: ghcr.io/kbball/meshcore-fleet-setup:latest

@@ -31,7 +31,7 @@ Server settings are environment variables (`.env.example`): `FLEET_ADDR`, `FLEET
 
 ## The image has no firmware
 
-The published image (`ghcr.io/kbball/meshcore-fleet-setup`) bakes in whatever was in `./firmware` when it was built, and the repository's `firmware/` holds nothing but a `.gitkeep`. So the published image has **no firmware**: the app loads, logs `firmware manifest … no such file or directory`, and cannot flash. Mount a directory containing `manifest.json` and the zips at `/firmware` (the compose file above does this with `./firmware`), or build the image yourself with a populated `./firmware`.
+The image (`ghcr.io/kbball/meshcore-fleet-setup`) contains **no firmware**, by design: firmware is a separate release of the firmware fork. Mount a directory containing `manifest.json`, the zips and (optionally) a `.release` file holding the release tag at `/firmware` (the compose file above does this with `./firmware`). Without it the app loads, logs `firmware manifest … no such file or directory`, and the banner at the top says no firmware is loaded. The banner shows the installed release and warns when the loaded event expects a different one.
 
 ## Getting firmware
 

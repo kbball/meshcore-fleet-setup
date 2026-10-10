@@ -1,6 +1,6 @@
 // Composition root: builds adapters and use cases. No logic here.
 import { DownloadSink } from './adapters/browser/download'
-import { HttpFirmwareSource } from './adapters/browser/firmwareSource'
+import { HttpFirmwareInfo, HttpFirmwareSource } from './adapters/browser/firmwareSource'
 import { RingLogger } from './adapters/browser/logger'
 import { LocalBatchStore } from './adapters/browser/resultsStore'
 import { WebCryptoBackupCipher } from './adapters/crypto/backupCipher'
@@ -20,9 +20,11 @@ export function buildApp(prompt: Prompt, onProgress: (step: string, pct: number)
   const logger = new RingLogger()
   const cipher = new WebCryptoBackupCipher()
   const connector = new WebSerialConnector()
+  const manifestUrl = import.meta.env.VITE_MANIFEST_URL ?? './firmware/manifest.json'
+  const firmwareInfo = new HttpFirmwareInfo(manifestUrl)
   const runner = new NodeRunner({
     connector,
-    firmware: new HttpFirmwareSource(import.meta.env.VITE_MANIFEST_URL ?? './firmware/manifest.json'),
+    firmware: new HttpFirmwareSource(manifestUrl),
     cipher,
     sink: new DownloadSink(),
     clock: systemClock,
@@ -31,5 +33,5 @@ export function buildApp(prompt: Prompt, onProgress: (step: string, pct: number)
     onProgress,
   })
   const batch = new Batch(runner, new LocalBatchStore())
-  return { logger, cipher, connector, runner, batch }
+  return { logger, cipher, connector, runner, batch, firmwareInfo }
 }

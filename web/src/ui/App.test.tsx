@@ -7,6 +7,7 @@ import {
   FakeConnector,
   MemoryBatchStore,
   MemoryFirmware,
+  MemoryFirmwareInfo,
   MemorySink,
   PlainCipher,
 } from '../adapters/memory/fakes'
@@ -32,6 +33,7 @@ function fakeFactory() {
   const sink = new MemorySink()
   const logger = new RingLogger(50, { info() {}, warn() {}, error() {} })
   const cipher = new PlainCipher()
+  const firmwareInfo = new MemoryFirmwareInfo()
   let prompt!: Prompt
   const factory = ((p: Prompt) => {
     prompt = p
@@ -44,9 +46,16 @@ function fakeFactory() {
       log: logger,
       prompt: p,
     })
-    return { logger, cipher, connector, runner, batch: new Batch(runner, new MemoryBatchStore()) }
+    return {
+      logger,
+      cipher,
+      connector,
+      runner,
+      batch: new Batch(runner, new MemoryBatchStore()),
+      firmwareInfo,
+    }
   }) as unknown as typeof buildApp
-  return { factory, node, sink, connector, ask: (m: string) => prompt(m) }
+  return { factory, node, sink, connector, firmwareInfo, ask: (m: string) => prompt(m) }
 }
 
 const upload = (label: RegExp, json: unknown, name = 'profile.json') =>
@@ -195,5 +204,20 @@ describe('App event tab', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Use gateway profile for AS1' }))
     expect(screen.getByText('gateway')).toBeInTheDocument()
     expect(screen.getByText(/RAK_4631_companion_radio_usb_ethernet/)).toBeInTheDocument()
+  })
+})
+
+describe('App firmware banner', () => {
+  it('shows the installed release and warns when the event expects another', async () => {
+    render(<App version="1" factory={fakeFactory().factory} />)
+    expect(await screen.findByLabelText('installed firmware')).toHaveTextContent('ares-v1.0.0')
+    await userEvent.click(screen.getByRole('tab', { name: 'Event' }))
+    await userEvent.type(screen.getByLabelText('Event name'), 'X')
+    await userEvent.clear(screen.getByLabelText(/^Firmware release/))
+    await userEvent.type(screen.getByLabelText(/^Firmware release/), 'ares-v2.0.0')
+    await userEvent.click(screen.getByRole('button', { name: 'Generate keys and create' }))
+    await waitFor(() =>
+      expect(screen.getByLabelText('installed firmware')).toHaveTextContent(/expects ares-v2.0.0/),
+    )
   })
 })

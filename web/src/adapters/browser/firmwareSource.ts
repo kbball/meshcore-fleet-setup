@@ -2,7 +2,8 @@ import { unzipSync } from 'fflate'
 import { bytesToHex, fromUtf8 } from '../../domain/bytes'
 import { findFirmware, parseManifest, type ManifestEntry } from '../../domain/manifest'
 import type { DfuPackage } from '../../domain/dfu'
-import type { FirmwareSource } from '../../app/ports'
+import type { FirmwareInfoSource, FirmwareSource } from '../../app/ports'
+import { installedFrom, type InstalledFirmware } from '../../domain/firmwareRelease'
 
 export async function sha256Hex(data: Uint8Array, c: Crypto = globalThis.crypto): Promise<string> {
   return bytesToHex(new Uint8Array(await c.subtle.digest('SHA-256', data as BufferSource)))
@@ -47,5 +48,22 @@ export class HttpFirmwareSource implements FirmwareSource {
     if ((await sha256Hex(zip, this.c)) !== entry.sha256.toLowerCase())
       throw new Error(`checksum mismatch for ${entry.file}; refusing to flash`)
     return { entry, pkg: unpackDfuZip(zip) }
+  }
+}
+
+/** Reads the manifest and `.release` next to it. Either may be missing: that is reported, not thrown. */
+export class HttpFirmwareInfo implements FirmwareInfoSource {
+  constructor(
+    private manifestUrl: string,
+    private fetchFn: typeof fetch = (...a) => fetch(...a),
+  ) {}
+
+  async installed(): Promise<InstalledFirmware> {
+    const base = new URL(this.manifestUrl, globalThis.location?.href ?? 'http://localhost/')
+    const [manifest, release] = await Promise.all([
+      this.fetchFn(base.toString()).then(async (r) => (r.ok ? parseManifest(await r.json()) : null)),
+      this.fetchFn(new URL('.release', base).toString()).then((r) => (r.ok ? r.text() : null)),
+    ])
+    return installedFrom(manifest, release)
   }
 }

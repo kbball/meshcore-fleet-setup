@@ -1,5 +1,6 @@
 import type { NodeBackup } from '../domain/backup'
 import type { DfuPackage } from '../domain/dfu'
+import type { InstalledFirmware } from '../domain/firmwareRelease'
 import type { ManifestEntry } from '../domain/manifest'
 
 /** Line-oriented text link to a node's USB serial CLI (sweep trackers). */
@@ -55,6 +56,11 @@ export interface NodeConnector {
 export interface FirmwareSource {
   /** Download the firmware zip for an env, verify its sha256, and unpack it. */
   load(env: string, version?: string): Promise<{ entry: ManifestEntry; pkg: DfuPackage }>
+}
+
+/** What firmware release the firmware directory holds (shown to the operator, compared with the event). */
+export interface FirmwareInfoSource {
+  installed(): Promise<InstalledFirmware>
 }
 
 export interface BackupCipher {

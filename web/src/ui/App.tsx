@@ -8,6 +8,7 @@ import { buildApp, systemClock, type App as AppServices } from '../wiring'
 import { AppHeader } from './AppHeader'
 import type { EventFile } from '../domain/event'
 import { EventPanel } from './EventPanel'
+import { FirmwareBanner } from './FirmwareBanner'
 import { ProfileEditor } from './ProfileEditor'
 
 type PromptState = { msg: string; resolve: () => void } | null
@@ -40,6 +41,7 @@ export function App({ version, factory = buildApp }: { version: string; factory?
           Web Serial is not available. Use Chrome or Edge on desktop.
         </p>
       )}
+      <FirmwareBanner source={services.firmwareInfo} eventTag={event?.firmware_tag} />
       <nav className="tabs" role="tablist" aria-label="Sections">
         <button
           role="tab"

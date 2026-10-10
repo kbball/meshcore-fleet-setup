@@ -7,11 +7,12 @@ IMAGE=${1:?usage: smoke-image.sh <image> <version>}
 WANT=${2:?usage: smoke-image.sh <image> <version>}
 NAME=fleetsetup-smoke-$$
 TMP=$(mktemp -d)
-trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true; rm -rf "$TMP"' EXIT
+trap 'docker rm -f "$NAME" "$NAME-bare" >/dev/null 2>&1 || true; rm -rf "$TMP"' EXIT
 
 # a firmware directory with a manifest whose checksum is right
 mkdir -p "$TMP/fw/v1"
 printf 'PK-smoke' >"$TMP/fw/v1/e.zip"
+printf 'ares-v1.0.0\n' >"$TMP/fw/.release"
 SUM=$(printf 'PK-smoke' | (sha256sum 2>/dev/null || shasum -a 256) | cut -d' ' -f1)
 cat >"$TMP/fw/manifest.json" <<JSON
 {"entries":[{"board":"b","env":"e","kind":"tracker","version":"v1","file":"v1/e.zip","sha256":"$SUM"}]}
@@ -34,10 +35,18 @@ curl -fsS "$BASE/" | grep -qi '<div id="root">' || fail "index.html is not the a
 HEADERS=$(curl -fsSI "$BASE/")
 echo "$HEADERS" | grep -qi '^content-security-policy:' || fail "no CSP header"
 curl -fsS "$BASE/firmware/manifest.json" | grep -q "$SUM" || fail "manifest not served"
+[ "$(curl -fsS "$BASE/firmware/.release")" = "ares-v1.0.0" ] || fail ".release not served"
 GOT=$(curl -fsS "$BASE/firmware/v1/e.zip")
 [ "$GOT" = "PK-smoke" ] || fail "firmware zip not served intact"
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/firmware/v1/")" = 404 ] || fail "directory listing is exposed"
 LOGS=$(docker logs "$NAME" 2>&1)
 grep -q '"status":"ok"' <<<"$LOGS" || fail "server did not report the firmware as ok"
+# the image itself must carry no firmware: without a mount there is no manifest
+BARE=$NAME-bare
+docker run -d --name "$BARE" -p 127.0.0.1::8080 "$IMAGE" >/dev/null
+BPORT=$(docker port "$BARE" 8080/tcp | head -1 | sed 's/.*://')
+for _ in $(seq 1 30); do curl -fsS "http://127.0.0.1:$BPORT/healthz" >/dev/null 2>&1 && break; sleep 1; done
+[ "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$BPORT/firmware/manifest.json")" = 404 ] || fail "the image contains firmware"
+docker rm -f "$BARE" >/dev/null
 [ "$(docker inspect -f '{{.Config.User}}' "$IMAGE")" != "root" ] || fail "image runs as root"
 echo "smoke ok: $IMAGE"
