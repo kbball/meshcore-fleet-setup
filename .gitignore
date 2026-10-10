@@ -1,0 +1,13 @@
+profiles/*.json
+!profiles/*.example.json
+.env
+node_modules/
+web/dist/*
+!web/dist/.gitkeep
+coverage/
+*.tsbuildinfo
+firmware/*
+!firmware/.gitkeep
+dist-bundle/
+coverage.out
+bin/

@@ -1,0 +1,17 @@
+{
+  "kind": "companion",
+  "firmware_variant": "Xiao_nrf52_companion_radio_usb_ble",
+  "wipe_first": true,
+  "radio": { "freq": 910.525, "bw": 62.5, "sf": 7, "cr": 5, "tx_power": 20 },
+  "channels": [
+    { "name": "Public", "secret": "public" },
+    { "name": "aid-station", "secret": "00112233445566778899aabbccddeeff" }
+  ],
+  "advert": {
+    "name_template": "AS3-{n}",
+    "lat": 33.89057,
+    "lon": -84.16948
+  },
+  "identity": { "mode": "generate" },
+  "ble_pin": 123456
+}

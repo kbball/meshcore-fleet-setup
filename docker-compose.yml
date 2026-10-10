@@ -1,0 +1,12 @@
+# Run the app on the event laptop:  docker compose up
+# Firmware (manifest.json + <version>/<env>.zip) is read from ./firmware, mounted read-only over the baked-in copy.
+services:
+  fleetsetup:
+    image: ghcr.io/kbball/meshcore-fleet-setup:latest
+    ports:
+      - "127.0.0.1:8080:8080" # Web Serial needs http://localhost; do not expose this beyond the laptop
+    volumes:
+      - ./firmware:/firmware:ro
+    environment:
+      LOG_LEVEL: info
+    restart: unless-stopped

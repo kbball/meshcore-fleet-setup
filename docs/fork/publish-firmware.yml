@@ -1,0 +1,69 @@
+# Copy to .github/workflows/publish-firmware.yml in the firmware fork (kbball/MeshCore-tracker).
+# Not active in this repo. On a tag, builds the companion (USB+BLE) and tracker envs, adds them to the
+# `firmware` branch of kbball/meshcore-fleet-setup (an orphan branch holding only manifest.json and the
+# newest zips). To use it: `git clone --branch firmware --depth 1 <fleet-setup repo> firmware && rm -rf firmware/.git`,
+# then build the image (bakes ./firmware in) or mount ./firmware at /firmware.
+#
+# Needs a repo secret FLEET_SETUP_TOKEN: a fine-grained PAT for kbball/meshcore-fleet-setup with
+# Contents: read/write (to push the firmware branch).
+#
+# Prerequisite: the fork needs one branch containing both the companion-usb-ble envs and the gps-tracker
+# envs; tag that branch.
+name: Publish firmware to fleet-setup
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLEET_REPO: kbball/meshcore-fleet-setup
+  KEEP_VERSIONS: "5"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install platformio
+      - name: Build
+        run: |
+          set -e
+          for env in Xiao_nrf52_companion_radio_usb_ble t1000e_companion_radio_usb_ble RAK_4631_companion_radio_usb_ble \
+                     t1000e_gps_tracker Xiao_nrf52_gps_tracker; do
+            pio run -e "$env"
+          done
+      - name: Version
+        id: v
+        run: echo "version=${GITHUB_REF_NAME:-dev}-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Fetch the manifest script and the current firmware branch
+        run: |
+          git clone --depth 1 "https://x-access-token:${{ secrets.FLEET_SETUP_TOKEN }}@github.com/${FLEET_REPO}.git" /tmp/fleet
+          mkdir -p /tmp/fw
+          if git -C /tmp/fleet ls-remote --exit-code --heads origin firmware >/dev/null; then
+            git clone --depth 1 --branch firmware "https://x-access-token:${{ secrets.FLEET_SETUP_TOKEN }}@github.com/${FLEET_REPO}.git" /tmp/fw
+            rm -rf /tmp/fw/.git
+          fi
+      - name: Add the new firmware to the manifest
+        run: |
+          B=.pio/build
+          node /tmp/fleet/scripts/build-firmware-manifest.mjs --dir /tmp/fw --version "${{ steps.v.outputs.version }}" --keep "$KEEP_VERSIONS" \
+            --entry "Xiao_nrf52_companion_radio_usb_ble|Seeed XIAO nRF52840|companion|$B/Xiao_nrf52_companion_radio_usb_ble/firmware.zip" \
+            --entry "t1000e_companion_radio_usb_ble|Seeed T-1000-E|companion|$B/t1000e_companion_radio_usb_ble/firmware.zip" \
+            --entry "RAK_4631_companion_radio_usb_ble|RAK4631|companion|$B/RAK_4631_companion_radio_usb_ble/firmware.zip" \
+            --entry "t1000e_gps_tracker|Seeed T-1000-E|tracker|$B/t1000e_gps_tracker/firmware.zip" \
+            --entry "Xiao_nrf52_gps_tracker|Seeed XIAO nRF52840|tracker|$B/Xiao_nrf52_gps_tracker/firmware.zip"
+      - name: Push as a single orphan commit (history never grows)
+        run: |
+          cd /tmp/fw
+          git init -q -b firmware
+          git config user.name "firmware-publisher"
+          git config user.email "firmware-publisher@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Firmware ${{ steps.v.outputs.version }}"
+          git push -f "https://x-access-token:${{ secrets.FLEET_SETUP_TOKEN }}@github.com/${FLEET_REPO}.git" firmware

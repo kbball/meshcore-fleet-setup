@@ -1,0 +1,26 @@
+# Changelog
+
+All notable changes to this project are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
+
+## [Unreleased]
+
+### Added
+- GPS setting for companion profiles (`gps: { enabled, interval_sec? }`) and in the profile builder: written with the node's `gps` / `gps_interval` settings, verified by read-back, captured in backups. Fails clearly on a node without a GPS.
+- Profile builder: a form for building and editing companion and tracker profile files (validated live, keys generated in the browser and masked in the preview, download or use directly for the batch).
+
+- UI theme adapted from sweep-tracker: shared colour tokens, light/dark/system toggle, DM Sans bundled for offline use, card/panel layout.
+
+- Go server (`cmd/fleetsetup`) embedding the frontend and serving the firmware directory, with security headers, a healthcheck and a startup check of firmware against its manifest; distroless Docker image, compose file, image smoke test, GHCR publishing in CI.
+- Offline bundle (`make bundle`) for laptops without Docker: app, firmware and a stdlib Python local server (`serve.py`).
+
+- Project scaffold (Vite, React, TypeScript, Vitest), CI, and a Pages deploy workflow.
+- Sweep tracker provisioning over the tracker text CLI (port of `provision_tracker.py`): validate, apply, read back, reboot.
+- Companion node support over the companion serial protocol: radio, channels, advert name/location, flood scope, identity import, BLE PIN, auto-add; read-back verification; optional factory-reset wipe.
+- Opt-in, passphrase-encrypted backup of a companion node (AES-GCM) with download and a prefilled mailto, and restore from a backup file.
+- Browser nRF52 serial DFU flashing (Adafruit bootloader protocol), verified against `adafruit-nrfutil` test vectors; not yet tried on hardware.
+- Firmware manifest with sha256 verification; `scripts/build-firmware-manifest.mjs` and a draft fork workflow (`docs/fork/publish-firmware.yml`).
+- Batch UI: profile loading, next-node loop with name counter, results log with CSV export.
+
+### Changed
+
+- Frontend moved to `web/`.

@@ -1,0 +1,10 @@
+.git
+**/node_modules
+web/dist/*
+!web/dist/.gitkeep
+dist-bundle
+coverage
+profiles
+docs
+*.md
+!VERSION
