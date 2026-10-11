@@ -2,6 +2,7 @@ import { FakeCompanionLink, freshCompanionState } from '../adapters/memory/fakeC
 import {
   FakeClock,
   FakeConnector,
+  FakeUf2Drive,
   MemoryBatchStore,
   MemoryFirmware,
   MemorySink,
@@ -14,7 +15,8 @@ import type { CompanionProfile, TrackerProfile } from '../domain/profile'
 import { Batch, resultsCsv } from './batch'
 import { backupFilename, captureBackup, restoreBackup } from './backup'
 import { CompanionClient } from './companionClient'
-import { NodeRunner, type RunnerDeps } from './nodeRunner'
+import { NodeRunner, WIPE_REBOOT_MS, type RunnerDeps } from './nodeRunner'
+import type { FrameLink } from './ports'
 import { restoreNode } from './restoreNode'
 
 const secret = '00112233445566778899aabbccddeeff'
@@ -170,6 +172,24 @@ describe('companion run', () => {
     expect(r.ok).toBe(false)
     expect(r.steps).toEqual([{ step: 'connect', status: 'failed', detail: 'no companion node connected' }])
     expect(runner).toBeDefined()
+  })
+
+  it('closes the port when the identity read fails, so a retry can reopen it', async () => {
+    const { deps } = setup()
+    let closed = 0
+    const dead: FrameLink = {
+      send: async () => {},
+      receive: async () => {
+        throw new Error('no reply')
+      },
+      drain: async () => {},
+      close: async () => void closed++,
+    }
+    const r = await new NodeRunner({ ...deps, connector: new FakeConnector(dead) }).runCompanion(profile, {
+      flash: false,
+    })
+    expect(r.steps).toEqual([{ step: 'connect', status: 'failed', detail: 'no reply' }])
+    expect(closed).toBe(1)
   })
 
   it('reports verify mismatches without printing secrets', async () => {
@@ -333,6 +353,139 @@ describe('companion client and config edge cases', () => {
   })
 })
 
+describe('wipe', () => {
+  it('does not wait for a reply to the factory reset, and gives the node time to reboot', async () => {
+    const { node, runner, deps } = setup()
+    const r = await runner.runCompanion(profile, { nodeName: 'AS3-1', flash: false })
+    expect(r.ok).toBe(true)
+    expect(node.resets).toBe(1)
+    expect((deps.clock as FakeClock).slept).toContain(WIPE_REBOOT_MS)
+    expect(r.steps.find((s) => s.step === 'wipe')?.status).toBe('ok')
+  })
+})
+
+describe('a node that does not answer', () => {
+  /** Accepts commands and never replies, like a board running firmware without the USB companion protocol. */
+  const silentLink = () => {
+    const l = { closed: 0 }
+    const link: FrameLink = {
+      send: async () => {},
+      receive: async () => {
+        await new Promise((r) => setTimeout(r, 5))
+        return null
+      },
+      drain: async () => {},
+      close: async () => void l.closed++,
+    }
+    return { link, l }
+  }
+  /** Silent until it is flashed; after that the reconnect finds a working node. */
+  class FlashedConnector extends FakeConnector {
+    constructor(
+      silent: FrameLink,
+      private working: FrameLink,
+    ) {
+      super(silent)
+    }
+    override async reopenFrames() {
+      this.reopens++
+      return this.working
+    }
+  }
+
+  it('goes on to flash it, then configures it', async () => {
+    const { deps } = setup()
+    const { link, l } = silentLink()
+    const connector = new FlashedConnector(link, new FakeCompanionLink(freshCompanionState(7)))
+    const r = await new NodeRunner({ ...deps, connector, companionTimeoutMs: 30 }).runCompanion(
+      { ...profile, wipe_first: false },
+      { nodeName: 'AS3-1', flash: true },
+    )
+    expect(r.ok).toBe(true)
+    expect(r.steps[0]).toEqual({ step: 'connect', status: 'ok', detail: expect.stringMatching(/no reply/) })
+    expect(connector.bootloaders).toHaveLength(1)
+    expect(l.closed).toBe(1) // released once, when the identity read gave up
+  })
+
+  it('refuses to back it up, and does not flash', async () => {
+    const { deps } = setup()
+    const { link } = silentLink()
+    const connector = new FakeConnector(link)
+    const r = await new NodeRunner({ ...deps, connector, companionTimeoutMs: 30 }).runCompanion(profile, {
+      flash: true,
+      backup: { passphrase: 'pw' },
+    })
+    expect(r.ok).toBe(false)
+    expect(r.steps).toEqual([
+      { step: 'connect', status: 'failed', detail: expect.stringMatching(/cannot be backed up/) },
+    ])
+    expect(connector.bootloaders).toHaveLength(0)
+  })
+
+  it('fails the connect when no flash was asked for', async () => {
+    const { deps } = setup()
+    const { link } = silentLink()
+    const r = await new NodeRunner({
+      ...deps,
+      connector: new FakeConnector(link),
+      companionTimeoutMs: 30,
+    }).runCompanion(profile, { flash: false })
+    expect(r.ok).toBe(false)
+    expect(r.steps[0].detail).toMatch(/not running a USB companion build/)
+  })
+})
+
+describe('UF2 boards', () => {
+  it('flashes by writing a UF2 to the bootloader drive instead of using serial DFU', async () => {
+    const { connector, runner, firmware, prompts } = setup()
+    firmware.bootloader = 'uf2'
+    const r = await runner.runCompanion({ ...profile, wipe_first: false }, { nodeName: 'AS3-1', flash: true })
+    expect(r.ok).toBe(true)
+    expect(connector.bootloaders).toHaveLength(0)
+    const uf2 = connector.drives[0].files.get('Xiao_nrf52_companion_radio_usb_ble.uf2')!
+    expect(uf2.length).toBe(Math.ceil(firmware.pkg.bin.length / 256) * 512)
+    expect(new DataView(uf2.buffer).getUint32(12, true)).toBe(0x27000)
+    expect(connector.reopens).toBe(1)
+    expect(prompts).toEqual(['double-click the button'])
+  })
+
+  it('treats a T-1000-E env as UF2 when the manifest does not say', async () => {
+    const { connector, runner, firmware } = setup()
+    const r = await runner.runCompanion(
+      { ...profile, firmware_variant: 't1000e_companion_radio_usb_ble', wipe_first: false },
+      { nodeName: 'T-1', flash: true },
+    )
+    expect(r.ok).toBe(true)
+    expect(firmware.loads).toEqual(['t1000e_companion_radio_usb_ble@latest'])
+    expect(connector.drives).toHaveLength(1)
+  })
+
+  it('refuses a softdevice it has no start address for, before touching the board', async () => {
+    const { connector, runner, firmware, node } = setup()
+    firmware.bootloader = 'uf2'
+    firmware.pkg.softdeviceReq = [999]
+    const r = await runner.runCompanion({ ...profile, wipe_first: false }, { nodeName: 'AS3-1', flash: true })
+    expect(r.ok).toBe(false)
+    expect(r.steps.find((s) => s.step === 'flash')?.detail).toMatch(/cannot pick a UF2 start address/)
+    expect(connector.drives).toHaveLength(0)
+    expect(node).toBeDefined()
+  })
+
+  it('reports a drive that could not be written', async () => {
+    const { runner, firmware, deps } = setup()
+    firmware.bootloader = 'uf2'
+    const connector = new FakeConnector(new FakeCompanionLink(freshCompanionState(7)))
+    connector.openUf2Drive = async () => Object.assign(new FakeUf2Drive(), { fail: true })
+    const r = await new NodeRunner({ ...deps, connector }).runCompanion(
+      { ...profile, wipe_first: false },
+      { nodeName: 'AS3-1', flash: true },
+    )
+    expect(r.ok).toBe(false)
+    expect(r.steps.find((s) => s.step === 'flash')?.detail).toMatch(/drive write failed/)
+    expect(runner).toBeDefined()
+  })
+})
+
 describe('tracker run', () => {
   const tp: TrackerProfile = {
     kind: 'tracker',
@@ -352,13 +505,27 @@ describe('tracker run', () => {
     expect(JSON.stringify(r)).not.toContain('SECRET')
   })
 
-  it('flashes first when asked', async () => {
+  it('flashes first through serial DFU when the board has one', async () => {
     const link = new FakeTrackerLink()
     const connector = new FakeConnector(undefined, link)
-    const deps = { ...setup().deps, connector }
-    const r = await new NodeRunner(deps).runTracker(tp, { nodeName: 'Sweep2', flash: true })
+    const { deps, firmware } = setup()
+    firmware.bootloader = 'dfu'
+    const r = await new NodeRunner({ ...deps, connector }).runTracker(tp, { nodeName: 'Sweep2', flash: true })
     expect(r.ok).toBe(true)
     expect(connector.bootloaders).toHaveLength(1)
+    expect(connector.reopens).toBe(1)
+  })
+
+  it('flashes a T-1000-E tracker by copying a UF2 to its drive', async () => {
+    const link = new FakeTrackerLink()
+    const connector = new FakeConnector(undefined, link)
+    const r = await new NodeRunner({ ...setup().deps, connector }).runTracker(tp, {
+      nodeName: 'Sweep2',
+      flash: true,
+    })
+    expect(r.ok).toBe(true)
+    expect(connector.bootloaders).toHaveLength(0)
+    expect([...connector.drives[0].files.keys()]).toEqual(['t1000e_gps_tracker.uf2'])
     expect(connector.reopens).toBe(1)
   })
 

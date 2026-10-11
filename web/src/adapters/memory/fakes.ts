@@ -16,6 +16,7 @@ import type {
   Logger,
   NodeConnector,
   Prompt,
+  Uf2Drive,
 } from '../../app/ports'
 
 export const silentLogger: Logger = { info() {}, warn() {}, error() {} }
@@ -47,6 +48,16 @@ export class FakeDfuLink implements DfuLink {
   }
 }
 
+/** Keeps the files written to it. */
+export class FakeUf2Drive implements Uf2Drive {
+  files = new Map<string, Uint8Array>()
+  fail = false
+  async write(filename: string, contents: Uint8Array) {
+    if (this.fail) throw new Error('drive write failed')
+    this.files.set(filename, contents)
+  }
+}
+
 export class MemorySink implements BackupSink {
   files = new Map<string, string>()
   fail = false
@@ -59,9 +70,11 @@ export class MemorySink implements BackupSink {
 export class MemoryFirmware implements FirmwareSource {
   loads: string[] = []
   fail = false
+  bootloader?: 'dfu' | 'uf2'
   readonly pkg: DfuPackage = {
     bin: new Uint8Array(1500).map((_, i) => i & 0xff),
     dat: Uint8Array.of(1, 2, 3),
+    softdeviceReq: [291],
   }
   async load(env: string, version?: string): Promise<{ entry: ManifestEntry; pkg: DfuPackage }> {
     if (this.fail) throw new Error('no firmware')
@@ -74,6 +87,7 @@ export class MemoryFirmware implements FirmwareSource {
         version: version ?? '1.0.0',
         file: 'x.zip',
         sha256: String(crc16(this.pkg.bin)),
+        bootloader: this.bootloader,
       },
       pkg: this.pkg,
     }
@@ -114,6 +128,7 @@ export class MemoryBatchStore implements BatchStore {
 export class FakeConnector implements NodeConnector {
   prompts: string[] = []
   bootloaders: FakeDfuLink[] = []
+  drives: FakeUf2Drive[] = []
   released = 0
   reopens = 0
   failBootloader = false
@@ -135,6 +150,12 @@ export class FakeConnector implements NodeConnector {
     const l = new FakeDfuLink()
     this.bootloaders.push(l)
     return l
+  }
+  async openUf2Drive(prompt: Prompt) {
+    await prompt('double-click the button')
+    const d = new FakeUf2Drive()
+    this.drives.push(d)
+    return d
   }
   async reopenFrames() {
     this.reopens++

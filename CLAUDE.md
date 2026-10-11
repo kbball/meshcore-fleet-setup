@@ -51,7 +51,7 @@ Dependency direction is always inward: `adapters -> app -> domain`.
 
 ## Targets
 
-Seeed T-1000-E, Seeed XIAO nRF52840 + Wio-SX1262, RAK4631. All nRF52840. Plus the station gateway: RAK4631 + RAK13800 Ethernet (`RAK_4631_companion_radio_usb_ethernet`), device kind `gateway` (companion protocol over USB, TCP port 5000 in service, DHCP address to reserve by MAC, no BLE so no PIN).
+Seeed T-1000-E, Seeed XIAO nRF52840 + Wio-SX1262, RAK4631. All nRF52840. Planned: Seeed Wio Tracker L1 Pro (see `plan.md`). Plus the station gateway: RAK4631 + RAK13800 Ethernet (`RAK_4631_companion_radio_usb_ethernet`), device kind `gateway` (companion protocol over USB, TCP port 5000 in service, DHCP address to reserve by MAC, no BLE so no PIN).
 
 ## Firmware (fork kbball/MeshCore-tracker, upstream meshcore-dev/MeshCore)
 
@@ -68,6 +68,8 @@ Seeed T-1000-E, Seeed XIAO nRF52840 + Wio-SX1262, RAK4631. All nRF52840. Plus th
 - Transport is Web Serial over USB, not Web Bluetooth (no pairing, faster, port permission is remembered). Skip BLE for batch work.
 - All configuration is runtime over the companion protocol (`docs/companion_protocol.md`, command IDs in `examples/companion_radio/MyMesh.cpp` in the fork). The Python `meshcore` library is a framing reference.
 - Per-node flow: (0) backup (see below); (a) flash: enter bootloader (T-1000-E needs button/double-reset, so prompt), upload DFU zip over Web Serial; (b) optional wipe: `CMD_FACTORY_RESET` or erase extrafs during DFU; (c) reconnect, since the USB port disappears and reappears on reboot/reflash; (d) configure, then read back to verify.
+- Two ways onto a board (`bootloaderOf` in `web/src/domain/manifest.ts`): Adafruit serial DFU (XIAO, RAK4631) and UF2 drive (T-1000-E: no serial port in its bootloader). UF2 is built in the browser from the DFU zip's `firmware.bin`, so releases still ship only `.zip`.
+- A node that does not answer app start is flashed anyway when flashing was requested (backup needs an answer, so it stops).
 - Browser nRF52 serial DFU is unverified. esp-web-tools doesn't cover nRF52, so research open-source JS nRF52 DFU first.
 - Commands: `CMD_SET_RADIO_PARAMS`, `CMD_SET_RADIO_TX_POWER`, `CMD_SET_CHANNEL`/`CMD_GET_CHANNEL`, `CMD_SET_ADVERT_NAME`, `CMD_SET_ADVERT_LATLON`, `CMD_IMPORT_PRIVATE_KEY`/`CMD_EXPORT_PRIVATE_KEY`, `CMD_SET_DEVICE_PIN`, `CMD_SET_DEVICE_TIME`, `CMD_SET_AUTOADD_CONFIG`, `CMD_SET_DEFAULT_FLOOD_SCOPE`, `CMD_SET_CUSTOM_VAR`.
 

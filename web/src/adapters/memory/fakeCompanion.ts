@@ -193,7 +193,7 @@ export class FakeCompanionLink implements FrameLink {
         fresh.time = s.time
         fresh.gps = s.gps === null ? null : false // a wipe turns GPS back off
         this.state = fresh
-        return this.ok()
+        return null // like the real firmware over USB: the serial interface is disabled before the OK would be sent
       }
       default:
         return this.err(1)

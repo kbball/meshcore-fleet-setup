@@ -1,8 +1,10 @@
 import { bytesToHex } from '../domain/bytes'
 import { cmd, parseSelfInfo } from '../domain/companion'
+import { bootloaderOf } from '../domain/manifest'
+import { appStartAddress, packUf2 } from '../domain/uf2'
 import type { CompanionProfile, TrackerProfile } from '../domain/profile'
 import { backupNode } from './backup'
-import { CompanionClient } from './companionClient'
+import { CompanionClient, CompanionTimeoutError } from './companionClient'
 import { applyCompanionProfile, readIdentity, verifyCompanionProfile } from './companionConfig'
 import { flashPackage } from './flashNode'
 import type {
@@ -52,9 +54,13 @@ export type RunnerDeps = {
   onProgress?: (step: StepName, pct: number) => void
   /** How long to wait for each tracker CLI reply (default 5 s). */
   trackerTimeoutMs?: number
+  /** How long to wait for each companion reply (default 5 s). */
+  companionTimeoutMs?: number
 }
 
 const REOPEN_TIMEOUT_MS = 30_000
+/** Format the filesystem, the firmware's own 1 s pause, then the reboot. 8 s was enough on a T-1000-E. */
+export const WIPE_REBOOT_MS = 8_000
 
 class StopRun extends Error {}
 
@@ -64,13 +70,32 @@ export class NodeRunner {
   async runCompanion(p: CompanionProfile, o: RunOptions): Promise<NodeResult> {
     const res = this.start(o.nodeName ?? '(unnamed)', p.kind)
     let link: FrameLink | null = null
+    let unresponsive = false
     try {
       link = await this.step(res, 'connect', async () => {
         const l = await this.d.connector.openFrames()
-        const id = await readIdentity(new CompanionClient(l))
-        res.publicKey = bytesToHex(id.self.publicKey)
+        try {
+          const id = await readIdentity(new CompanionClient(l, this.d.companionTimeoutMs))
+          res.publicKey = bytesToHex(id.self.publicKey)
+        } catch (e) {
+          // don't leave the port open and locked, or the operator's retry fails with "already open"
+          await l.close().catch(() => {})
+          if (!(e instanceof CompanionTimeoutError)) throw e
+          // Silent node: a new board, or one running firmware without the USB companion protocol. Flashing
+          // is how it gets fixed, so go on to the bootloader; a backup needs a talking node, so refuse.
+          if (!o.flash || o.backup) {
+            throw new Error(
+              `${e.message}. The node is not running a USB companion build${o.backup ? ', so it cannot be backed up (turn the backup off to flash it anyway)' : ''}.`,
+              { cause: e },
+            )
+          }
+          this.d.log.warn('node did not answer; flashing anyway', { detail: e.message })
+          unresponsive = true
+          return null
+        }
         return l
       })
+      if (unresponsive) res.steps.at(-1)!.detail = 'no reply from the node; going on to flash it'
 
       if (o.backup) {
         await this.step(res, 'backup', async () => {
@@ -86,18 +111,18 @@ export class NodeRunner {
 
       if (o.flash) {
         await this.step(res, 'flash', async () => {
-          const { pkg } = await this.d.firmware.load(p.firmware_variant, o.firmwareVersion)
-          await link!.close()
-          const dfu = await this.d.connector.openBootloader(this.d.prompt)
-          await flashPackage(dfu, pkg, this.d.clock, this.d.log, (pct) => this.d.onProgress?.('flash', pct))
+          await this.flashFirmware(p.firmware_variant, o.firmwareVersion, async () => link?.close())
           link = await this.d.connector.reopenFrames(REOPEN_TIMEOUT_MS)
         })
       } else this.skip(res, 'flash')
 
       if (p.wipe_first) {
         await this.step(res, 'wipe', async () => {
-          await new CompanionClient(link!).ok(cmd.factoryReset(), 'factory reset')
+          // The firmware disables its serial interface before it formats, so no OK ever comes back over USB;
+          // it reboots by itself about a second after the format. Send, let go of the port, wait it out.
+          await new CompanionClient(link!).fireAndForget(cmd.factoryReset())
           await link!.close()
+          await this.d.clock.sleep(WIPE_REBOOT_MS)
           link = await this.d.connector.reopenFrames(REOPEN_TIMEOUT_MS)
         })
       } else this.skip(res, 'wipe')
@@ -130,10 +155,7 @@ export class NodeRunner {
 
       if (o.flash) {
         await this.step(res, 'flash', async () => {
-          const { pkg } = await this.d.firmware.load(p.firmware_variant, o.firmwareVersion)
-          await link!.close()
-          const dfu = await this.d.connector.openBootloader(this.d.prompt)
-          await flashPackage(dfu, pkg, this.d.clock, this.d.log, (pct) => this.d.onProgress?.('flash', pct))
+          await this.flashFirmware(p.firmware_variant, o.firmwareVersion, async () => link?.close())
           link = await this.d.connector.reopenLines(REOPEN_TIMEOUT_MS)
         })
       } else this.skip(res, 'flash')
@@ -158,6 +180,25 @@ export class NodeRunner {
   }
 
   // ---- helpers ----
+
+  /**
+   * Load a firmware package and put it on the board the way its bootloader wants: serial DFU, or a .uf2 file
+   * copied to the bootloader drive (T-1000-E). `release` lets go of the app's serial port first.
+   */
+  private async flashFirmware(variant: string, version: string | undefined, release: () => Promise<void>) {
+    const { entry, pkg } = await this.d.firmware.load(variant, version)
+    if (bootloaderOf(entry) === 'uf2') {
+      const uf2 = packUf2(pkg.bin, appStartAddress(pkg.softdeviceReq)) // before touching the board: bad ids fail early
+      await release()
+      const drive = await this.d.connector.openUf2Drive(this.d.prompt)
+      await drive.write(`${entry.env}.uf2`, uf2)
+      this.d.onProgress?.('flash', 100)
+      return
+    }
+    await release()
+    const dfu = await this.d.connector.openBootloader(this.d.prompt)
+    await flashPackage(dfu, pkg, this.d.clock, this.d.log, (pct) => this.d.onProgress?.('flash', pct))
+  }
 
   private start(name: string, kind: NodeResult['kind']): NodeResult {
     return { name, kind, startedAt: this.d.clock.now().toISOString(), steps: [], ok: false }

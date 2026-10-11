@@ -16,6 +16,18 @@ describe('unpackDfuZip', () => {
   it('extracts bin and dat', () => {
     expect(unpackDfuZip(goodZip())).toEqual({ bin: Uint8Array.of(1, 2, 3), dat: Uint8Array.of(9) })
   })
+  it('reads the softdevice ids the package requires', () => {
+    const zip = zipSync({
+      'manifest.json': manifestJson({
+        bin_file: 'firmware.bin',
+        dat_file: 'firmware.dat',
+        init_packet_data: { softdevice_req: [291] },
+      }),
+      'firmware.bin': Uint8Array.of(1),
+      'firmware.dat': Uint8Array.of(2),
+    })
+    expect(unpackDfuZip(zip).softdeviceReq).toEqual([291])
+  })
   it('rejects bad packages', () => {
     expect(() => unpackDfuZip(zipSync({ 'a.txt': Uint8Array.of(1) }))).toThrow(/no manifest/)
     expect(() => unpackDfuZip(zipSync({ 'manifest.json': manifestJson({}) }))).toThrow(/application-only/)

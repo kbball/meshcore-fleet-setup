@@ -5,7 +5,10 @@ export type ManifestEntry = {
   version: string
   file: string // path relative to the manifest
   sha256: string
+  /** How the board is flashed. Absent = decided by `bootloaderOf` from the env name. */
+  bootloader?: Bootloader
 }
+export type Bootloader = 'dfu' | 'uf2'
 export type Manifest = { entries: ManifestEntry[] }
 
 export function parseManifest(json: unknown): Manifest {
@@ -17,9 +20,19 @@ export function parseManifest(json: unknown): Manifest {
     }
     if (e.kind !== 'companion' && e.kind !== 'gateway' && e.kind !== 'tracker')
       throw new Error(`manifest entry ${i} has bad kind`)
+    if (e.bootloader !== undefined && e.bootloader !== 'dfu' && e.bootloader !== 'uf2')
+      throw new Error(`manifest entry ${i} has a bad bootloader`)
     if (!/^[0-9a-f]{64}$/i.test(e.sha256)) throw new Error(`manifest entry ${i} has a bad sha256`)
   }
   return { entries: entries as ManifestEntry[] }
+}
+
+/**
+ * Serial DFU (Adafruit bootloader) or UF2 mass-storage drive. The T-1000-E's bootloader is UF2-only: it shows a
+ * drive and no serial port. The manifest field wins; this default covers releases built before it existed.
+ */
+export function bootloaderOf(e: Pick<ManifestEntry, 'env' | 'bootloader'>): Bootloader {
+  return e.bootloader ?? (e.env.startsWith('t1000e_') ? 'uf2' : 'dfu')
 }
 
 const semverParts = (v: string) =>

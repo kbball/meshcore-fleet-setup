@@ -19,7 +19,14 @@ export function unpackDfuZip(zip: Uint8Array): DfuPackage {
   const bin = files[app.bin_file]
   const dat = files[app.dat_file]
   if (!bin || !dat) throw new Error('firmware zip is missing its bin or dat file')
-  return { bin, dat }
+  const softdeviceReq: unknown = app.init_packet_data?.softdevice_req
+  return {
+    bin,
+    dat,
+    softdeviceReq: Array.isArray(softdeviceReq)
+      ? softdeviceReq.filter((n) => Number.isInteger(n))
+      : undefined,
+  }
 }
 
 export class HttpFirmwareSource implements FirmwareSource {

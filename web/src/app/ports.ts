@@ -32,6 +32,12 @@ export interface DfuLink {
   close(): Promise<void>
 }
 
+/** The mass-storage drive a UF2 bootloader exposes. Writing a .uf2 file to it flashes the board. */
+export interface Uf2Drive {
+  /** Copy the file onto the drive. The board reboots into the new firmware as soon as it is written, so the drive may vanish mid-call. */
+  write(filename: string, contents: Uint8Array): Promise<void>
+}
+
 /** Ask the operator to do something physical; resolves when they say it is done (a click, so the browser grants a gesture). */
 export type Prompt = (msg: string) => Promise<void>
 
@@ -46,6 +52,8 @@ export interface NodeConnector {
   openLines(): Promise<LineLink>
   /** Put the current node into its DFU bootloader (1200 baud touch, or ask the operator) and open it. */
   openBootloader(prompt: Prompt): Promise<DfuLink>
+  /** Put the current node into its UF2 bootloader (the operator does it; we try the 1200 baud touch first) and get its drive. */
+  openUf2Drive(prompt: Prompt): Promise<Uf2Drive>
   /** Wait for the node to come back after a reboot or reflash, then open it as frames or lines. */
   reopenFrames(timeoutMs: number): Promise<FrameLink>
   reopenLines(timeoutMs: number): Promise<LineLink>

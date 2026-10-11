@@ -92,4 +92,5 @@ export const eraseWaitMs = (totalSize: number) =>
 /** Single-bank, application-only update: only the bootloader settings page needs time. */
 export const activateWaitMs = () => FLASH_PAGE_ERASE_TIME_MS + FLASH_PAGE_WRITE_TIME_MS
 
-export type DfuPackage = { bin: Uint8Array; dat: Uint8Array }
+/** `softdeviceReq` is the softdevice id list from the package's manifest (used to place a UF2 image). */
+export type DfuPackage = { bin: Uint8Array; dat: Uint8Array; softdeviceReq?: number[] }

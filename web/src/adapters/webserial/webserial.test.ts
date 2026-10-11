@@ -170,6 +170,30 @@ describe('WebSerialConnector', () => {
     await link.close()
   }, 15000)
 
+  it('touches the app port, prompts, then returns the drive the operator picked', async () => {
+    const app = new FakePort()
+    const drive = { write: async () => {} }
+    const c = new WebSerialConnector(makeSerial([], [app]), 300, async () => drive)
+    await (await c.openFrames()).close() // the operator already chose the app port
+    const prompts: string[] = []
+    expect(await c.openUf2Drive(async (m) => void prompts.push(m))).toBe(drive)
+    expect(app.opened).toContain(1200)
+    expect(prompts[0]).toMatch(/double-click/)
+  })
+
+  it('still asks for the drive when there is no app port yet or the touch fails', async () => {
+    const drive = { write: async () => {} }
+    const c = new WebSerialConnector(makeSerial([], []), 300, async () => drive)
+    expect(await c.openUf2Drive(async () => {})).toBe(drive)
+    const app = new FakePort()
+    app.open = async () => {
+      throw new Error('port busy')
+    }
+    const c2 = new WebSerialConnector(makeSerial([], [app]), 300, async () => drive)
+    await c2.openFrames().catch(() => {}) // remembers the port, then the open fails
+    expect(await c2.openUf2Drive(async () => {})).toBe(drive)
+  })
+
   it('times out when the node never comes back', async () => {
     const app = new FakePort()
     const c = new WebSerialConnector(makeSerial([], [app]))
